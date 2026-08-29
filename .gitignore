@@ -1,0 +1,65 @@
+# Python (packaging dirs anchored to repo root so they never swallow app source like frontend/src/lib/)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+# Coverage.py data file (the ratchet reads the Cobertura xml under .data/, not this)
+.coverage
+.coverage.*
+
+# Virtual Environments
+venv/
+.venv/
+.venv-linux/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Node
+node_modules/
+
+# Environment Variables
+.env
+.env.*
+
+# Agent runtime local state
+.hermes/
+
+# Logs, Databases, and Client Data
+logs/
+*.log
+!logs/.gitkeep
+!logs/archive/.gitkeep
+*.sqlite
+*.sqlite3
+.data/
+client_files/
+
+# IDE and System Files (settings.json is tracked: it enforces format-on-save + ruff per the Constitution)
+.vscode/*
+!.vscode/settings.json
+# Junction target; content tracked at .agent/skills
+.claude/skills/
+.idea/
+.DS_Store
+Thumbs.db
+*.bak

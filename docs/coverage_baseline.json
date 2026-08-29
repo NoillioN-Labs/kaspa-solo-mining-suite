@@ -1,0 +1,6 @@
+{
+  "line_pct": null,
+  "branch_pct": null,
+  "updated": null,
+  "note": "Ratchet floor for coverage_gate.py (AGENTS.md 5.7). null = no floor yet (nascent/advisory); the ratchet check is skipped until seeded. Seed or raise it with: python scripts/utilities/coverage_gate.py --update-baseline. This file is git-tracked state, not a generated report, so it carries no _YYMMDD_HHMM stamp (AGENTS 5.2)."
+}

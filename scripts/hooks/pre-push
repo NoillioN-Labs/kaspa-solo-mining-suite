@@ -1,0 +1,113 @@
+#!/bin/sh
+# scripts/hooks/pre-push - GitHub Actions cost guard (AGENTS 8).
+#
+# WHY THIS EXISTS
+# A push is the only expensive step in the loop: it is what triggers CI. Commits
+# are local and free. The failure this guards against is not a big bill - it is a
+# DARK GATE. When an account's Actions allowance is exhausted, workflows stop
+# EXECUTING, and every run reports "failure" without ever having started. That
+# looks exactly like ordinary red CI, so nobody investigates, and meanwhile every
+# "gates green" claim is a local run only.
+#
+# Two properties make this worse than it first sounds:
+#   1. Minutes bill to the ACCOUNT, not the repository. One over-pushing project
+#      can switch CI off for every sibling project, including ones whose own
+#      workflow costs almost nothing.
+#   2. Windows runners bill at 2x and macOS at 10x. A long Windows suite pushed
+#      10-25 times a day exhausts a 3,000-minute allowance in a few active days.
+#
+# THE STRUCTURAL FIX
+# CI triggers only on the branches listed in your workflows' on.push.branches.
+# So tie cost to the branch you are on rather than to anyone's willpower:
+#   - work on a story/** branch: push as often as you like, zero CI cost, full
+#     off-machine backup
+#   - merge locally and push the default branch ONCE per work block: exactly one
+#     CI run, on the merged result, which is the state that actually matters
+#
+# WARNING: an open PR is not a free branch. The pull_request trigger's default
+# types include "synchronize", which fires on every push to the PR's head branch.
+# Free pushes exist only while no PR is open.
+#
+# ESCAPE HATCHES (deliberate, documented, not secret - a secret override just
+# gets bypassed with --no-verify and teaches nobody anything)
+#   NEON_ALLOW_MASTER_PUSH=1 git push origin master
+#   git push --no-verify origin master
+#
+# This file is TRACKED, but it is active only when core.hooksPath points here.
+# core.hooksPath is LOCAL repo config: it does not survive a fresh clone and
+# cannot be committed, so run the installer after cloning:
+#   python scripts/utilities/install_git_hooks.py
+#
+# Pure ASCII on purpose (AGENTS 5.5.1): this runs under Git for Windows' sh, and
+# a stray non-ASCII byte in a hook is a debugging afternoon nobody needs.
+# Validate edits with: sh -n scripts/hooks/pre-push
+
+ZERO="0000000000000000000000000000000000000000"
+
+if [ "${NEON_ALLOW_MASTER_PUSH:-}" = "1" ]; then
+    exit 0
+fi
+
+pushing_to_default=0
+target_branch=""
+commit_count="?"
+
+# git feeds the hook one line per ref: <local ref> <local sha> <remote ref> <remote sha>
+#
+# The `|| [ -n "$local_ref" ]` is load-bearing, not defensive noise. `read` returns
+# non-zero at EOF when the final line has no trailing newline, so a plain
+# `while read ...` would skip that last ref entirely -- and this guard would exit 0,
+# silently ALLOWING the push. A guard that fails open is worse than no guard.
+while read -r local_ref local_sha remote_ref remote_sha || [ -n "$local_ref" ]; do
+    case "$remote_ref" in
+        refs/heads/master|refs/heads/main) ;;
+        *) continue ;;
+    esac
+
+    # A deletion (local sha all zeros) is not a CI-triggering content push.
+    [ "$local_sha" = "$ZERO" ] && continue
+
+    pushing_to_default=1
+    target_branch="${remote_ref#refs/heads/}"
+
+    if [ "$remote_sha" = "$ZERO" ]; then
+        commit_count="(new branch)"
+    else
+        commit_count=$(git rev-list --count "$remote_sha..$local_sha" 2>/dev/null || echo "?")
+    fi
+done
+
+[ "$pushing_to_default" = "1" ] || exit 0
+
+cat >&2 <<EOF
+
+  PUSH TO ${target_branch} BLOCKED - GitHub Actions cost guard (AGENTS 8)
+
+  Commits in this push: $commit_count
+
+  Every push to the default branch is one CI run. Minutes bill to the ACCOUNT,
+  so this cost is shared with every sibling project - exhaust it and their gates
+  go dark too, reporting "failure" without ever starting.
+
+  This is a nudge, not a wall. Pick one:
+
+  1. PREFERRED - land it as one work block:
+         git switch -c story/<id>-<slug>      # CI does not run on this branch
+         git push -u origin story/<id>-<slug> # free backup, push as often as you like
+         # ...when the block is genuinely finished and the LOCAL full suite is green:
+         git switch ${target_branch} && git merge --no-ff story/<id>-<slug>
+         NEON_ALLOW_MASTER_PUSH=1 git push origin ${target_branch}
+
+  2. This push really is a finished work block:
+         NEON_ALLOW_MASTER_PUSH=1 git push origin ${target_branch}
+
+  3. Docs-only change? If your expensive workflow sets paths-ignore for docs,
+     only the cheap lint job will run. Use option 2 to proceed.
+
+  Reminder: CI bills per PUSH, not per commit. Ten local commits pushed once
+  cost the same as one. And do not open a PR while work is in progress - the
+  pull_request trigger re-runs CI on every push to the branch.
+
+EOF
+
+exit 1

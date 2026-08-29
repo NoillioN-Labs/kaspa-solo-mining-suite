@@ -1,0 +1,58 @@
+[project]
+name = "kaspa-stratum-bridge"
+version = "0.1.0"
+description = "NEON dev stack project template (name is cleansed per-project by bootstrap)."
+requires-python = ">=3.11"
+dependencies = [
+    "pytest~=9.1.1",
+    "pytest-cov~=7.0.0",
+    "pytest-playwright~=0.8.0",
+    "ruff~=0.15.21",
+    "structlog~=26.1.0",
+    "pyyaml~=6.0.3",
+    "psutil~=7.2.2",
+]
+
+[tool.uv]
+# Template repository is library-less: nothing to build or install as a package.
+package = false
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+    ".venv",
+    ".data",
+    "_bmad",
+    ".agent",
+    "docs",
+    "scripts/scratch/archive",
+    "scripts/utilities/archive",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Long lines inside generated-markdown template literals; wrapping them would change log output.
+"scripts/utilities/archive_session.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "paid: tests that call paid external APIs",
+]
+# Coverage is deliberately NOT wired into addopts: a targeted run (e.g. one test file)
+# would then report misleading low coverage. coverage_gate.py --run generates the report
+# from the FULL suite; that is the only measurement the ratchet trusts (AGENTS.md 5.7).
+addopts = "-m 'not paid'"
+
+# Branch coverage is the point -- line coverage alone marks an `if` "covered" when only
+# one arm ran. `source` is overridden by config.yaml testing.coverage.source at gate time.
+[tool.coverage.run]
+branch = true
+source = ["backend"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true

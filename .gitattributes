@@ -1,0 +1,12 @@
+# Enforce CRLF line endings for markdown files to eliminate git status noise on Windows/WSL environments
+*.md text eol=crlf
+
+# Shell scripts and git hooks MUST stay LF. With core.autocrlf=true git would
+# otherwise check them out CRLF, and git executes hooks DIRECTLY via their shebang --
+# where a trailing CR yields `bad interpreter: /bin/sh^M`. The hook then does not run
+# at all, which is precisely how a guard becomes silently absent (AGENTS 5.5.1: a
+# fallback that quietly returns success is a latent incident). Invoking the same file
+# as `sh <file>` happens to tolerate the CRs, so this does NOT reproduce in casual
+# testing -- it only bites on the real execution path, on someone else's clone.
+scripts/hooks/** text eol=lf
+*.sh text eol=lf

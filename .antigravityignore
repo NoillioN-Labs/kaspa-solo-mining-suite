@@ -1,0 +1,13 @@
+# Exclude archives, logs, data, secrets, and heavy framework internals from IDE agent indexing
+**/archive/
+logs/
+.data/
+client_files/
+.env
+.env.*
+_bmad/
+.venv/
+.venv-linux/
+__pycache__/
+.pytest_cache/
+node_modules/

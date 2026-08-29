@@ -1,0 +1,82 @@
+#!/bin/sh
+# scripts/hooks/pre-commit - default-branch code-commit guard (AGENTS 4 step 2 / 8).
+#
+# WHY THIS EXISTS
+# The branch rule ("code and constitution changes ride a story/<id>-<slug> branch")
+# lived as prose, and prose lost: an audit on 2026-08-29 found feature work landing
+# directly on the default branch across the fleet. The scope clause is deliberate
+# and narrow (owner decision D15, 2026-08-29):
+#
+#   BLOCKED on the default branch : code, tests, config, constitution, hooks -
+#                                   anything that changes behaviour
+#   ALLOWED on the default branch : docs/**, task.md, _bmad-output/** - session
+#                                   bookkeeping and auto-saves (AGENTS 8 depends
+#                                   on committing those per milestone)
+#
+# Merge commits are unaffected: git does not run pre-commit for `git merge`, so
+# the land-a-work-block flow (merge locally, push once) is untouched.
+#
+# ESCAPE HATCHES (deliberate, documented, not secret)
+#   NEON_ALLOW_MASTER_COMMIT=1 git commit ...
+#   git commit --no-verify ...
+#
+# This file is TRACKED but active only via core.hooksPath; run the installer
+# after cloning: python scripts/utilities/install_git_hooks.py
+#
+# Pure ASCII on purpose (AGENTS 5.5.1). Validate edits with:
+#   sh -n scripts/hooks/pre-commit
+
+if [ "${NEON_ALLOW_MASTER_COMMIT:-}" = "1" ]; then
+    exit 0
+fi
+
+branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || echo "")
+case "$branch" in
+    master|main) ;;
+    *) exit 0 ;;
+esac
+
+# One path per LINE, read whole (never `for path in $list`, which word-splits:
+# "docs/code review/x.md" would become two tokens and the second one - a docs
+# file - would be BLOCKED, a false positive that teaches people to reach for the
+# override). The heredoc keeps the loop out of a subshell so the counters
+# survive it, and `|| [ -n "$path" ]` keeps a final line with no trailing
+# newline - a guard that fails open on the last entry is worse than no guard.
+blocked=""
+count=0
+while IFS= read -r path || [ -n "$path" ]; do
+    [ -n "$path" ] || continue
+    case "$path" in
+        docs/*|task.md|_bmad-output/*) ;;
+        *)
+            blocked="$blocked
+      $path"
+            count=$((count + 1))
+            ;;
+    esac
+done <<STAGED_EOF
+$(git diff --cached --name-only)
+STAGED_EOF
+
+[ "$count" = "0" ] && exit 0
+
+cat >&2 <<EOF
+
+  COMMIT TO ${branch} BLOCKED - branch discipline guard (AGENTS 4 step 2, 8)
+
+  $count staged path(s) change code/config/constitution, which rides a story
+  branch - only docs, task.md and _bmad-output bookkeeping land here directly:
+$blocked
+
+  Pick one:
+
+  1. PREFERRED - move to a story branch (keeps your staged work):
+         git switch -c story/<id>-<slug>
+         git commit ...
+
+  2. This genuinely belongs on ${branch} (rare - say why in the message):
+         NEON_ALLOW_MASTER_COMMIT=1 git commit ...
+
+EOF
+
+exit 1
