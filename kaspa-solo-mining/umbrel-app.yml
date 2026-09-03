@@ -1,7 +1,7 @@
 manifestVersion: 1.1
 id: kaspa-solo-mining
 category: kaspa
-name: Kaspa Solo Mining Console
+name: Kaspa Solo Mining Suite
 version: "2.0.0"
 tagline: All-in-one solo mining stack with bundled Rusty Kaspad node and ASIC manager
 icon: https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store/main/kaspa-solo-mining/icon.svg

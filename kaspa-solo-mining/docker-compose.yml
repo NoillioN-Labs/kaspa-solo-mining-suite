@@ -4,7 +4,7 @@ services:
   # Umbrel Reverse Proxy Adapter
   app_proxy:
     environment:
-      APP_HOST: kaspa-solo-mining-console_web_1
+      APP_HOST: kaspa-solo-mining_web_1
       APP_PORT: 8080
 
   # 1. Bundled Rusty Kaspad Node (Full P2P Daemon)
