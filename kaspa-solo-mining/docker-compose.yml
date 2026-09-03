@@ -42,7 +42,7 @@ services:
 
   # 3. Solo Mining Management Console & Dashboard
   web:
-    image: ghcr.io/noillion-labs/kaspa-solo-mining-console:latest
+    image: ghcr.io/noillion-labs/kaspa-solo-mining-suite:latest
     restart: on-failure
     depends_on:
       - bridge
