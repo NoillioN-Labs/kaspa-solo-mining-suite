@@ -24,7 +24,7 @@ services:
 
   # 2. Rusty Kaspa Stratum Bridge v2.0.1
   bridge:
-    image: ghcr.io/noillion-labs/kaspa-stratum-manager:1.3.0
+    image: ghcr.io/noillion-labs/kaspa-stratum-manager:1.3.0@sha256:fe7075cd5897c2cb20291728213f59b9c325912f48ffce2268b0bbb439ef8fd7
     restart: on-failure
     stop_grace_period: 20s
     depends_on:
