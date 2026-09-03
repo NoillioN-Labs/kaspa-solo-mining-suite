@@ -9,7 +9,7 @@ services:
 
   # 1. Bundled Rusty Kaspad Node (Full P2P Daemon)
   kaspad:
-    image: kaspanet/kaspad:v0.14.1
+    image: kaspanet/rusty-kaspad:latest
     restart: on-failure
     stop_grace_period: 30s
     ports:
@@ -21,12 +21,6 @@ services:
       - "--listen=0.0.0.0:16111"
       - "--rpclisten-borsh=0.0.0.0:17110"
       - "--rpclisten-json=0.0.0.0:18110"
-    healthcheck:
-      test: ["CMD", "kaspactl", "get-info"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 
   # 2. Rusty Kaspa Stratum Bridge v2.0.1
   bridge:
@@ -53,8 +47,6 @@ services:
     depends_on:
       - bridge
       - kaspad
-    ports:
-      - "8080:8080"
     environment:
       NODE_ENV: production
       PORT: 8080

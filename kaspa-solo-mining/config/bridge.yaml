@@ -1,0 +1,20 @@
+# Managed default for the official Rusty Kaspa Stratum Bridge v2.0.1.
+# manager_preset: automatic
+kaspad_address: "host.docker.internal:16110"
+block_wait_time: 1000
+print_stats: true
+log_to_file: false
+health_check_port: ""
+web_dashboard_port: ":3030"
+var_diff: true
+shares_per_min: 30
+var_diff_stats: true
+pow2_clamp: true
+extranonce_size: 2
+coinbase_tag_suffix: ""
+
+instances:
+  - stratum_port: ":5555"
+    min_share_diff: 2048
+    prom_port: ":2114"
+    log_to_file: false
