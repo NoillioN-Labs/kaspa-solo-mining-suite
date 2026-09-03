@@ -14,6 +14,9 @@ export function createServer(options?: {
   app.use(cors());
   app.use(express.json());
 
+  // Serve compiled frontend static assets in production
+  app.use(express.static("public"));
+
   const history = options?.historyStore ?? new HistoryStore();
   const supervisor = options?.supervisor ?? new BridgeSupervisor();
   const kaspad = options?.nodeClient ?? new KaspaNodeClient();
