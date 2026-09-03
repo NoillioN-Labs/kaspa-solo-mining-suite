@@ -14,7 +14,7 @@ developer: NoillioN Labs
 dependencies: []
 repo: https://github.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store
 support: https://github.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store/issues
-port: 8080
+port: 5557
 gallery:
   - https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store/main/kaspa-solo-mining/1.png
   - https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store/main/kaspa-solo-mining/2.png
