@@ -136,3 +136,12 @@ export function createServer(options?: {
 
   return { app, history, supervisor, kaspad };
 }
+
+// Auto-start server when run directly as node entrypoint
+const port = Number(process.env.PORT) || 8080;
+const host = process.env.HOST || "0.0.0.0";
+const { app } = createServer();
+app.listen(port, host, () => {
+  console.log(`Kaspa Solo Mining Suite running on http://${host}:${port}`);
+});
+
