@@ -1,0 +1,16 @@
+{
+  "samples": [],
+  "blocks": [
+    {
+      "blockHash": "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+      "timestamp": 1788469621649,
+      "workerName": "antminer_ks5_rack1",
+      "rewardKas": 125.45,
+      "rewardSompi": "12545000000",
+      "isBlue": true,
+      "blueScore": "7891234",
+      "id": "1788469621649-00000000",
+      "celebrated": true
+    }
+  ]
+}

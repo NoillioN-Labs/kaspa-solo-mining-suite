@@ -1,0 +1,26 @@
+manifestVersion: 1
+id: kaspa-stratum-manager
+name: Kaspa Solo Mining Console
+tagline: All-in-one solo mining stack with bundled Rusty Kaspad node and ASIC manager
+category: Crypto
+version: "2.0.0"
+port: 8080
+description: >-
+  The ultimate zero-dependency Kaspa solo mining suite for Umbrel.
+  Runs your own local Rusty Kaspad node, official Stratum Bridge v2.0.1,
+  and a high-performance management dashboard with tuned ASIC presets
+  for IceRiver, Antminer, Desiwe, and Goldshell miners.
+developer: NoillioN Labs
+website: https://github.com/NoillioN-Labs
+dependencies: []
+repo: https://github.com/NoillioN-Labs/kaspa-stratum-manager-community-store
+support: https://github.com/NoillioN-Labs/kaspa-stratum-manager-community-store/issues
+gallery:
+  - 1.png
+  - 2.png
+releaseNotes: >-
+  Rebuilt from the ground up:
+  - Bundled Rusty Kaspad node for 100% self-contained solo mining (no external app dependency).
+  - High-impact animated celebration screen with confetti particles on block discovery.
+  - Expanded ASIC tuning presets (IceRiver KS0/1/2/3/5/7, Antminer KS3/5, Desiwe K11, Goldshell).
+  - Modern, ultra-lightweight Vite + React dashboard with Dark/Light mode.
