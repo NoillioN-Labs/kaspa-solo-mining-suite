@@ -23,9 +23,9 @@ This repository is an official **Umbrel Community App Store** publishing the **K
 1. On your Umbrel server, open **App Store → Community App Stores → Add**.
 2. Paste this repository URL:
    ```
-   https://github.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store
+   https://github.com/NoillioN-Labs/kaspa-solo-mining-suite
    ```
-3. Open the **NoillioN Labs** community store section and click **Install** on **Kaspa Solo Mining Console**.
+3. Open the **NoillioN Labs** community store section and click **Install** on **Kaspa Solo Mining Suite**.
 4. Configure your ASIC miners on your local network to point to:
    ```
    stratum+tcp://<YOUR_UMBREL_IP>:5555

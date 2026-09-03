@@ -4,7 +4,7 @@ category: kaspa
 name: Kaspa Solo Mining Suite
 version: "2.0.0"
 tagline: All-in-one solo mining stack with bundled Rusty Kaspad node and ASIC manager
-icon: https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store/main/kaspa-solo-mining/icon.svg
+icon: https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-suite/main/kaspa-solo-mining/icon.svg
 description: >-
   The ultimate zero-dependency Kaspa solo mining suite for Umbrel.
   Runs your own local Rusty Kaspad node, official Stratum Bridge v2.0.1,
@@ -12,12 +12,12 @@ description: >-
   for IceRiver, Antminer, Desiwe, and Goldshell miners.
 developer: NoillioN Labs
 dependencies: []
-repo: https://github.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store
-support: https://github.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store/issues
+repo: https://github.com/NoillioN-Labs/kaspa-solo-mining-suite
+support: https://github.com/NoillioN-Labs/kaspa-solo-mining-suite/issues
 port: 5557
 gallery:
-  - https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store/main/kaspa-solo-mining/1.png
-  - https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-umbrel-store/main/kaspa-solo-mining/2.png
+  - https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-suite/main/kaspa-solo-mining/1.png
+  - https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-suite/main/kaspa-solo-mining/2.png
 releaseNotes: >-
   Rebuilt from the ground up:
   - Bundled Rusty Kaspad node for 100% self-contained solo mining (no external app dependency).
