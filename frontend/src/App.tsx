@@ -266,7 +266,7 @@ export const App: React.FC = () => {
                   border: "1px solid var(--border-subtle)",
                 }}
               >
-                stratum+tcp://&lt;YOUR_UMBREL_IP&gt;:5555
+                stratum+tcp://&lt;YOUR_UMBREL_IP&gt;:55555
               </div>
             </div>
           </div>

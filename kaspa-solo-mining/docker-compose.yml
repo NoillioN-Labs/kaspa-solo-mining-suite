@@ -30,7 +30,7 @@ services:
     depends_on:
       - kaspad
     ports:
-      - "5555:5555/tcp" # Dedicated Stratum TCP Port for ASICs
+      - "55555:5555/tcp" # Dedicated Stratum TCP Port for ASICs
     volumes:
       - "${APP_DATA_DIR}/data:/data"
     command:
