@@ -9,11 +9,10 @@ services:
 
   # 1. Bundled Rusty Kaspad Node (Full P2P Daemon)
   kaspad:
-    image: kaspanet/rusty-kaspad:latest
+    image: supertypo/rusty-kaspad:latest
     restart: on-failure
     stop_grace_period: 30s
-    ports:
-      - "16111:16111" # Kaspa Mainnet P2P
+
     volumes:
       - "${APP_DATA_DIR}/kaspad_data:/root/.rusty-kaspa"
     command:
