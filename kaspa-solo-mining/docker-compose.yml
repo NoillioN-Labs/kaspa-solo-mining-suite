@@ -14,8 +14,9 @@ services:
     stop_grace_period: 30s
 
     volumes:
-      - "${APP_DATA_DIR}/kaspad_data:/root/.rusty-kaspa"
+      - "${APP_DATA_DIR}/kaspad_data:/app/data"
     command:
+      - "--appdir=/app/data"
       - "--rpc-listen=0.0.0.0:16110"
       - "--listen=0.0.0.0:16111"
       - "--rpclisten-borsh=0.0.0.0:17110"
