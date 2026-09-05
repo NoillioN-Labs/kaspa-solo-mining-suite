@@ -21,6 +21,7 @@ services:
       - 1.1.1.1
       - 8.8.8.8
     command:
+      - "kaspad"
       - "--appdir=/app/data"
       - "--rpclisten=0.0.0.0:16110"
       - "--listen=0.0.0.0:16111"
