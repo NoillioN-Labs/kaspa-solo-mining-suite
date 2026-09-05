@@ -16,6 +16,7 @@ services:
     volumes:
       - "${APP_DATA_DIR}/kaspad_data:/app/data"
     command:
+      - "kaspad"
       - "--appdir=/app/data"
       - "--rpc-listen=0.0.0.0:16110"
       - "--listen=0.0.0.0:16111"
