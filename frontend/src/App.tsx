@@ -1876,6 +1876,24 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Mobile Bottom Navigation Bar (iPhone 16 Pro Thumb Zone) */}
+      <nav className="mobile-bottom-bar">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            className={`mobile-bottom-item ${activeTab === item.id ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab(item.id);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            aria-label={item.label}
+          >
+            {item.icon}
+            <span>{item.id === "settings" ? "Presets" : item.id === "miners" ? "Workers" : item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 };
