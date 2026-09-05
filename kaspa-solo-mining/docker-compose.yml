@@ -9,19 +9,20 @@ services:
 
   # 1. Bundled Rusty Kaspad Node (Full P2P Daemon)
   kaspad:
-    image: supertypo/rusty-kaspad:latest
+    image: kaspanet/rusty-kaspad:v2.0.1
     restart: on-failure
     stop_grace_period: 30s
 
     volumes:
       - "${APP_DATA_DIR}/kaspad_data:/app/data"
     command:
-      - "kaspad"
       - "--appdir=/app/data"
       - "--rpc-listen=0.0.0.0:16110"
       - "--listen=0.0.0.0:16111"
       - "--rpclisten-borsh=0.0.0.0:17110"
       - "--rpclisten-json=0.0.0.0:18110"
+      - "--utxoindex"
+      - "--disable-upnp"
 
   # 2. Rusty Kaspa Stratum Bridge v2.0.1
   bridge:
