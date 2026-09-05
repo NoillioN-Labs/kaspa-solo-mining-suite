@@ -29,7 +29,7 @@ services:
       - "--rpclisten-json=0.0.0.0:18110"
       - "--utxoindex"
       - "--disable-upnp"
-      - "--dnsseed=seeder1.kaspad.net"
+      - "--addpeer=seeder1.kaspad.net"
       - "--addpeer=seeder2.kaspad.net"
 
   # 2. Rusty Kaspa Stratum Bridge v2.0.1
