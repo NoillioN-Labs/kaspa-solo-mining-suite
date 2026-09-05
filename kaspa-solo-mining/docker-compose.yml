@@ -15,14 +15,21 @@ services:
 
     volumes:
       - "${APP_DATA_DIR}/kaspad_data:/app/data"
+    ports:
+      - "16111:16111" # Kaspa Mainnet P2P Port
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     command:
       - "--appdir=/app/data"
-      - "--rpc-listen=0.0.0.0:16110"
+      - "--rpclisten=0.0.0.0:16110"
       - "--listen=0.0.0.0:16111"
       - "--rpclisten-borsh=0.0.0.0:17110"
       - "--rpclisten-json=0.0.0.0:18110"
       - "--utxoindex"
       - "--disable-upnp"
+      - "--dnsseed=seeder1.kaspad.net"
+      - "--addpeer=seeder2.kaspad.net"
 
   # 2. Rusty Kaspa Stratum Bridge v2.0.1
   bridge:
