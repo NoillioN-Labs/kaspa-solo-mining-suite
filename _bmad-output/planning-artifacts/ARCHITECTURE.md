@@ -78,6 +78,21 @@ The application executes as three isolated containerized services orchestrated b
 ### AD-4: Real Data Ground Truth (Zero Mock Fallback in Production)
 - **Rule:** Mock data generators are restricted strictly to unit testing fixtures (`NODE_ENV === 'test'`). In production, if `kaspad` or `bridge` is offline or syncing, the backend MUST report actual status (`connecting`, `syncing`, `degraded`), real peer count, and genuine 0 hashrate instead of seeded example data.
 
+### AD-5: Tiered Rollup Retention Policy (6-Month Cap)
+- **Binds:** Storage footprint and query latency on resource-constrained Umbrel hardware.
+- **Invariant:** Telemetry data footprint must not exceed 10 MB total or cause query degradation on low-power devices.
+- **Rule:** The background collector persists telemetry using a tiered rollup schedule:
+  1. **24-Hour Tier (High Resolution):** 1-minute raw samples (max 1,440 data points).
+  2. **30-Day Tier (Medium Resolution):** 15-minute averaged rollups (max 2,880 data points).
+  3. **6-Month / 180-Day Tier (Low Resolution):** 1-hour averaged rollups (max 4,320 data points).
+  4. Data older than 180 days is automatically purged during the hourly aggregation cycle.
+  5. **Mined Block Ledger:** Blocks found, rewards, and solve events are stored permanently in the ledger and are never pruned by the retention lifecycle.
+
+### AD-6: Reset Data Mechanism & Danger Zone Safety Gate
+- **Binds:** Administrative telemetry maintenance and user confirmation contract.
+- **Rule:** A destructive reset action is provided via `POST /api/data/reset` to wipe all historical hashrate, worker samples, and share statistics.
+- **Invariant:** The user interface MUST NOT allow triggering this reset directly without an explicit, interactive warning confirmation modal ("Are you sure? This will erase historical hashrate, shares, and telemetry data. This action cannot be undone.").
+
 ---
 
 ## 3. Data Flows & Polling Contracts
@@ -86,8 +101,8 @@ The application executes as three isolated containerized services orchestrated b
 1. `ASIC Worker` submits share to `bridge:5555`.
 2. `bridge` records accepted/stale/invalid share and instantaneous vardiff.
 3. `BackgroundCollectorService` polls `http://bridge:3030` every 5s.
-4. Telemetry is saved in a 24-hour rolling ring-buffer in `/data/telemetry.json`.
-5. Frontend fetches `/api/stats` or receives live push via SSE (`/api/events`).
+4. Telemetry is stored and rolled up into 24h, 30d, and 6m resolution buckets.
+5. Frontend fetches `/api/stats`, `/api/workers`, or `/api/history?range=24h|30d|6m`.
 
 ### Data Flow 2: DAG Sync & Peer Telemetry
 1. `BackgroundCollectorService` posts JSON-RPC request to `http://kaspad:18110`:
@@ -103,3 +118,4 @@ The application executes as three isolated containerized services orchestrated b
 2. Bridge broadcasts block to `kaspad:16110` and logs block solve event.
 3. Collector detects new block in `getBlocks` or bridge webhook.
 4. Emits `block_found` event over SSE `/api/events` to trigger frontend Easter Egg confetti burst.
+

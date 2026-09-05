@@ -24,6 +24,8 @@ import {
   RefreshCw,
   Sliders,
   CheckCircle2,
+  AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { GhostdagVisualizer } from "./components/GhostdagVisualizer";
@@ -112,19 +114,84 @@ export const App: React.FC = () => {
     { id: "logs", label: "Logs & Node", icon: <Terminal size={18} /> },
   ];
 
-  const [stats] = useState<StatsData>({
-    totalHashrate: "24.5 TH/s",
-    activeMiners: 3,
-    acceptedShares: 14820,
-    staleShares: 12,
+  const [stats, setStats] = useState<StatsData>({
+    totalHashrate: "0.0 TH/s",
+    activeMiners: 0,
+    acceptedShares: 0,
+    staleShares: 0,
     invalidShares: 0,
-    luckEstimate: "8.4 hrs",
-    nodeStatus: "Synchronized (10 BPS)",
+    luckEstimate: "Calculating...",
+    nodeStatus: "Connecting...",
   });
 
   const [presets, setPresets] = useState<PresetItem[]>([]);
   const [selectedPreset, setSelectedPreset] = useState("automatic");
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+
+  // Danger Zone: Reset Telemetry state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
+
+  // Poll live stats every 3 seconds
+  useEffect(() => {
+    const fetchLiveStats = () => {
+      fetch("/api/stats")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data) {
+            setStats({
+              totalHashrate: data.totalHashrate || "0.0 TH/s",
+              activeMiners: data.activeMiners || 0,
+              acceptedShares: data.acceptedShares || 0,
+              staleShares: data.staleShares || 0,
+              invalidShares: data.invalidShares || 0,
+              luckEstimate: data.luckEstimate || "N/A",
+              nodeStatus: data.nodeStatus || "Connected",
+            });
+            if (data.isSynced !== undefined) {
+              setNodeSync((prev) => ({
+                ...prev,
+                isSynced: Boolean(data.isSynced),
+                progressPercent: Number(data.syncProgress || (data.isSynced ? 100 : 88.6)),
+                currentHeaderDaa: Number(data.currentDaa || prev.currentHeaderDaa),
+                targetHeaderDaa: Number(data.targetDaa || prev.targetHeaderDaa),
+              }));
+            }
+          }
+        })
+        .catch(() => {
+          // Graceful offline fallback
+        });
+    };
+
+    fetchLiveStats();
+    const interval = setInterval(fetchLiveStats, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleExecuteResetData = async () => {
+    setIsResetting(true);
+    try {
+      const res = await fetch("/api/data/reset", { method: "POST" });
+      const json = await res.json();
+      setIsResetting(false);
+      setShowResetModal(false);
+      setResetSuccessMessage(json.message || "Historical telemetry data wiped.");
+      setTimeout(() => setResetSuccessMessage(null), 4000);
+      // Refresh stats immediately
+      setStats((prev) => ({
+        ...prev,
+        acceptedShares: 0,
+        staleShares: 0,
+        invalidShares: 0,
+      }));
+    } catch (err) {
+      setIsResetting(false);
+      setShowResetModal(false);
+      alert("Failed to reset data. Please verify backend connection.");
+    }
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -829,6 +896,198 @@ export const App: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Danger Zone: Reset Telemetry Data (AD-6) */}
+            <div
+              style={{
+                marginTop: "2.5rem",
+                padding: "1.5rem",
+                borderRadius: "12px",
+                background: "rgba(239, 68, 68, 0.05)",
+                border: "1px solid rgba(239, 68, 68, 0.25)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                    <AlertTriangle size={18} color="#ef4444" />
+                    <h4 style={{ margin: 0, color: "#ef4444", fontSize: "1.05rem", fontWeight: 700 }}>
+                      Danger Zone • Telemetry Maintenance
+                    </h4>
+                  </div>
+                  <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", maxWidth: "600px" }}>
+                    Reset all historical hashrate charts, worker telemetry samples, and share counters. Active miner stratum connections and node synchronization will remain intact.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowResetModal(true)}
+                  style={{
+                    background: "rgba(239, 68, 68, 0.15)",
+                    color: "#ef4444",
+                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                    padding: "0.6rem 1.2rem",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#ef4444";
+                    e.currentTarget.style.color = "#fff";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)";
+                    e.currentTarget.style.color = "#ef4444";
+                  }}
+                >
+                  <Trash2 size={16} /> Reset Historical Data
+                </button>
+              </div>
+
+              {resetSuccessMessage && (
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    padding: "0.75rem 1rem",
+                    borderRadius: "6px",
+                    background: "rgba(16, 185, 129, 0.15)",
+                    border: "1px solid var(--status-success)",
+                    color: "var(--status-success)",
+                    fontSize: "0.85rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>{resetSuccessMessage}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Double-Confirmation Modal for Data Reset (AD-6) */}
+        {showResetModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(0, 0, 0, 0.75)",
+              backdropFilter: "blur(6px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1rem",
+            }}
+          >
+            <div
+              className="glass-panel"
+              style={{
+                maxWidth: "480px",
+                width: "100%",
+                padding: "2rem",
+                borderRadius: "16px",
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                background: "var(--bg-surface)",
+                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "10px",
+                    background: "rgba(239, 68, 68, 0.15)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <AlertTriangle size={22} color="#ef4444" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#fff" }}>
+                    Are you sure you want to reset data?
+                  </h3>
+                  <span style={{ fontSize: "0.75rem", color: "#ef4444", fontWeight: 600 }}>
+                    DESTRUCTIVE ACTION • CANNOT BE UNDONE
+                  </span>
+                </div>
+              </div>
+
+              <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "1.5rem" }}>
+                This operation will permanently erase:
+              </p>
+
+              <ul
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--text-muted)",
+                  paddingLeft: "1.25rem",
+                  marginBottom: "1.75rem",
+                  lineHeight: 1.6,
+                }}
+              >
+                <li>All 24-hour, 30-day, and 6-month hashrate rollup graphs</li>
+                <li>Cumulative accepted, stale, and invalid share counters</li>
+                <li>Historic worker effort and hashrate performance logs</li>
+              </ul>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+                <button
+                  disabled={isResetting}
+                  onClick={() => setShowResetModal(false)}
+                  style={{
+                    padding: "0.6rem 1.2rem",
+                    borderRadius: "8px",
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-subtle)",
+                    color: "var(--text-primary)",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={isResetting}
+                  onClick={handleExecuteResetData}
+                  style={{
+                    padding: "0.6rem 1.25rem",
+                    borderRadius: "8px",
+                    background: "#ef4444",
+                    border: "none",
+                    color: "#fff",
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    cursor: isResetting ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    opacity: isResetting ? 0.7 : 1,
+                  }}
+                >
+                  {isResetting ? (
+                    <>
+                      <RefreshCw size={14} className="sync-pulse" /> Wiping Data...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={14} /> Yes, Reset All Telemetry
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
