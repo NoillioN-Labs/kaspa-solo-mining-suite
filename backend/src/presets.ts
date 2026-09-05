@@ -20,20 +20,24 @@ export interface BridgeSettings {
 export interface PresetProfile {
   id: string;
   name: string;
-  manufacturer: string;
+  difficultyTier: "Adaptive" | "Low Difficulty" | "Medium Difficulty" | "High Difficulty" | "Ultra / Enterprise";
   hashrateNominal: string;
   description: string;
+  recommended?: boolean;
+  models: string[];
   settings: BridgeSettings;
 }
 
 export const PRESET_CATALOG: Record<string, PresetProfile> = {
-  // Automatic / Universal Defaults
+  // Automatic / Universal Default
   automatic: {
     id: "automatic",
     name: "Automatic (Universal)",
-    manufacturer: "Universal",
-    hashrateNominal: "Auto",
-    description: "Adaptive vardiff suitable for mixed fleets or general miners.",
+    difficultyTier: "Adaptive",
+    hashrateNominal: "Auto-Tuning",
+    description: "Recommended for most miners. Dynamically calculates and adapts vardiff to target ~30 shares/min regardless of ASIC model.",
+    recommended: true,
+    models: ["All ASIC Models", "Mixed Mining Rigs", "Unknown Hardware"],
     settings: {
       stratumPort: 5555,
       variableDifficulty: true,
@@ -44,13 +48,14 @@ export const PRESET_CATALOG: Record<string, PresetProfile> = {
     },
   },
 
-  // IceRiver Series
-  "iceriver-ks0": {
-    id: "iceriver-ks0",
-    name: "IceRiver KS0 / KS0 Pro",
-    manufacturer: "IceRiver",
-    hashrateNominal: "100 - 200 GH/s",
-    description: "Low-diff tuning optimized for entry-level IceRiver desktop units.",
+  // Low Difficulty Tier (100 GH/s – 500 GH/s)
+  "low-tier": {
+    id: "low-tier",
+    name: "Entry / Compact (Diff 64)",
+    difficultyTier: "Low Difficulty",
+    hashrateNominal: "100 GH/s – 500 GH/s",
+    description: "Low-difficulty baseline preventing stale share timeouts and high submission rejection on quiet home/desktop ASICs.",
+    models: ["IceRiver KS0", "IceRiver KS0 Pro", "IceRiver KS0 Ultra"],
     settings: {
       stratumPort: 5555,
       variableDifficulty: true,
@@ -60,12 +65,15 @@ export const PRESET_CATALOG: Record<string, PresetProfile> = {
       minimumShareDifficulty: 64,
     },
   },
-  "iceriver-ks1-ks2": {
-    id: "iceriver-ks1-ks2",
-    name: "IceRiver KS1 / KS2",
-    manufacturer: "IceRiver",
-    hashrateNominal: "1 - 2 TH/s",
-    description: "Tuned vardiff for mid-tier KS1 & KS2 units.",
+
+  // Medium Difficulty Tier (1 TH/s – 5 TH/s)
+  "mid-tier": {
+    id: "mid-tier",
+    name: "Mid-Range Home Units (Diff 512 – 1024)",
+    difficultyTier: "Medium Difficulty",
+    hashrateNominal: "1 TH/s – 5 TH/s",
+    description: "Tuned vardiff floor for mid-capacity standalone home miners and lower-power industrial units.",
+    models: ["IceRiver KS1 (1 TH/s)", "IceRiver KS2 (2 TH/s)", "IceRiver KS7 Lite (~4.2 TH/s)", "Goldshell KA-BOX / Pro (1.6 - 2.4 TH/s)"],
     settings: {
       stratumPort: 5555,
       variableDifficulty: true,
@@ -75,12 +83,15 @@ export const PRESET_CATALOG: Record<string, PresetProfile> = {
       minimumShareDifficulty: 512,
     },
   },
-  "iceriver-ks3": {
-    id: "iceriver-ks3",
-    name: "IceRiver KS3 / KS3M / KS3L",
-    manufacturer: "IceRiver",
-    hashrateNominal: "6 - 8 TH/s",
-    description: "High-throughput vardiff for IceRiver KS3 family.",
+
+  // High Difficulty Tier (6 TH/s – 12 TH/s)
+  "high-tier": {
+    id: "high-tier",
+    name: "High-Throughput ASICs (Diff 2048 – 4096)",
+    difficultyTier: "High Difficulty",
+    hashrateNominal: "6 TH/s – 12 TH/s",
+    description: "Optimized share frequency for serious miners and high-hashrate single-board ASICs.",
+    models: ["IceRiver KS3 / KS3M / KS3L (6-8 TH/s)", "Bitmain Antminer KS3 (9.4 TH/s)", "Desiwe / Windminer K11 (11 TH/s)"],
     settings: {
       stratumPort: 5555,
       variableDifficulty: true,
@@ -90,27 +101,15 @@ export const PRESET_CATALOG: Record<string, PresetProfile> = {
       minimumShareDifficulty: 2048,
     },
   },
-  "iceriver-ks5": {
-    id: "iceriver-ks5",
-    name: "IceRiver KS5L / KS5M",
-    manufacturer: "IceRiver",
-    hashrateNominal: "12 - 15 TH/s",
-    description: "Optimized for high-hashrate KS5 series with power-of-two clamping.",
-    settings: {
-      stratumPort: 5555,
-      variableDifficulty: true,
-      sharesPerMinute: 32,
-      powerOfTwoClamp: true,
-      extranonceSize: 2,
-      minimumShareDifficulty: 4096,
-    },
-  },
-  "iceriver-ks7": {
-    id: "iceriver-ks7",
-    name: "IceRiver KS7 / KS7 Lite",
-    manufacturer: "IceRiver",
-    hashrateNominal: "20 - 25 TH/s",
-    description: "Tested enterprise configuration for IceRiver flagship KS7 series.",
+
+  // Enterprise / Ultra High Difficulty Tier (12 TH/s – 25+ TH/s)
+  "ultra-tier": {
+    id: "ultra-tier",
+    name: "Enterprise Flagships (Diff 8192)",
+    difficultyTier: "Ultra / Enterprise",
+    hashrateNominal: "12 TH/s – 25+ TH/s",
+    description: "High difficulty starting floor designed for commercial enterprise flagships to avoid saturating network bridge buffers.",
+    models: ["Bitmain Antminer KS5 / KS5 Pro (20-21 TH/s)", "IceRiver KS7 (20-25 TH/s)", "IceRiver KS5L / KS5M (12-15 TH/s)"],
     settings: {
       stratumPort: 5555,
       variableDifficulty: true,
@@ -118,72 +117,6 @@ export const PRESET_CATALOG: Record<string, PresetProfile> = {
       powerOfTwoClamp: true,
       extranonceSize: 2,
       minimumShareDifficulty: 8192,
-    },
-  },
-
-  // Bitmain Antminer Series
-  "antminer-ks3": {
-    id: "antminer-ks3",
-    name: "Bitmain Antminer KS3",
-    manufacturer: "Bitmain",
-    hashrateNominal: "9.4 TH/s",
-    description: "Tuned for Antminer KS3 hardware stability.",
-    settings: {
-      stratumPort: 5555,
-      variableDifficulty: true,
-      sharesPerMinute: 30,
-      powerOfTwoClamp: true,
-      extranonceSize: 2,
-      minimumShareDifficulty: 2048,
-    },
-  },
-  "antminer-ks5": {
-    id: "antminer-ks5",
-    name: "Bitmain Antminer KS5 / KS5 Pro",
-    manufacturer: "Bitmain",
-    hashrateNominal: "20 - 21 TH/s",
-    description: "High difficulty starting floor for Antminer KS5 flagships.",
-    settings: {
-      stratumPort: 5555,
-      variableDifficulty: true,
-      sharesPerMinute: 35,
-      powerOfTwoClamp: true,
-      extranonceSize: 2,
-      minimumShareDifficulty: 8192,
-    },
-  },
-
-  // Desiwe / Windminer
-  "desiwe-k11": {
-    id: "desiwe-k11",
-    name: "Desiwe / Windminer K11",
-    manufacturer: "Desiwe",
-    hashrateNominal: "11 TH/s",
-    description: "Custom share frequency for Windminer K11 ASIC architecture.",
-    settings: {
-      stratumPort: 5555,
-      variableDifficulty: true,
-      sharesPerMinute: 30,
-      powerOfTwoClamp: true,
-      extranonceSize: 2,
-      minimumShareDifficulty: 4096,
-    },
-  },
-
-  // Goldshell
-  "goldshell-kabox": {
-    id: "goldshell-kabox",
-    name: "Goldshell KA-BOX / Pro",
-    manufacturer: "Goldshell",
-    hashrateNominal: "1.6 - 2.4 TH/s",
-    description: "Low-latency compact miner preset for Goldshell home units.",
-    settings: {
-      stratumPort: 5555,
-      variableDifficulty: true,
-      sharesPerMinute: 25,
-      powerOfTwoClamp: true,
-      extranonceSize: 2,
-      minimumShareDifficulty: 512,
     },
   },
 };

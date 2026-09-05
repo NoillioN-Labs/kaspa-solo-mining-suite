@@ -5,12 +5,16 @@ import { KaspaNodeClient, sompiToKas } from "../src/kaspad.js";
 import { createServer } from "../src/server.js";
 
 describe("ASIC Presets & Validation", () => {
-  it("should contain tuned presets for IceRiver, Antminer, Desiwe, and Goldshell", () => {
-    expect(PRESET_CATALOG["iceriver-ks0"]).toBeDefined();
-    expect(PRESET_CATALOG["iceriver-ks7"]).toBeDefined();
-    expect(PRESET_CATALOG["antminer-ks5"]).toBeDefined();
-    expect(PRESET_CATALOG["desiwe-k11"]).toBeDefined();
-    expect(PRESET_CATALOG["goldshell-kabox"]).toBeDefined();
+  it("should contain tuned presets organized by difficulty tier with model coverage", () => {
+    expect(PRESET_CATALOG["automatic"]).toBeDefined();
+    expect(PRESET_CATALOG["low-tier"]).toBeDefined();
+    expect(PRESET_CATALOG["mid-tier"]).toBeDefined();
+    expect(PRESET_CATALOG["high-tier"]).toBeDefined();
+    expect(PRESET_CATALOG["ultra-tier"]).toBeDefined();
+    expect(PRESET_CATALOG["automatic"].recommended).toBe(true);
+    // Check that KS7 Lite is in mid-tier (~4.2 TH/s) and KS0 Ultra is in low-tier
+    expect(PRESET_CATALOG["mid-tier"].models.some((m) => m.includes("KS7 Lite"))).toBe(true);
+    expect(PRESET_CATALOG["low-tier"].models.some((m) => m.includes("KS0 Ultra"))).toBe(true);
   });
 
   it("should validate valid hardware settings", () => {

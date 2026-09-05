@@ -1,0 +1,94 @@
+:root {
+  /* Kaspa Colors */
+  --kaspa-teal: #70C7BA;
+  --kaspa-teal-hover: #5bb3a6;
+  
+  /* Dark Mode Palette (Umbrel Native feel) */
+  --bg-base: #101014;
+  --bg-surface: #1C1C21;
+  --bg-surface-hover: #2A2A31;
+  
+  --text-primary: #FFFFFF;
+  --text-secondary: #9CA3AF;
+  
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  
+  /* Spacing & Borders */
+  --spacing-main: 24px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Layout Utilities */
+.app-container {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+.app-header {
+  grid-column: 1 / -1;
+  background-color: var(--bg-surface);
+  padding: 16px var(--spacing-main);
+  border-bottom: 1px solid var(--bg-surface-hover);
+  display: flex;
+  align-items: center;
+}
+
+.app-header h1 {
+  color: var(--kaspa-teal);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.app-sidebar {
+  background-color: var(--bg-base);
+  padding: var(--spacing-main);
+  border-right: 1px solid var(--bg-surface-hover);
+}
+
+.app-main {
+  padding: var(--spacing-main);
+  background-color: var(--bg-base);
+}
+
+.card {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-main);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.code-block {
+  font-family: var(--font-mono);
+  background-color: #0A0A0C;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  color: var(--kaspa-teal);
+  font-size: 0.875rem;
+}
