@@ -3,13 +3,13 @@ set -euo pipefail
 
 APP_SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-install -d -m 0777 "${APP_DATA_DIR}/data"
-install -d -m 0777 "${APP_DATA_DIR}/kaspad_data"
+install -d -m 0750 -o 1000 -g 1000 "${APP_DATA_DIR}/data"
+install -d -m 0777 -o 1000 -g 1000 "${APP_DATA_DIR}/kaspad_data"
 
-# Ensure runtime config.yaml exists for Stratum Bridge
+# Ensure runtime config.yaml exists for Stratum Bridge with 1000:1000 ownership
 if [ ! -f "${APP_DATA_DIR}/data/config.yaml" ]; then
   if [ -f "${APP_SRC_DIR}/config/bridge.yaml" ]; then
-    cp -f "${APP_SRC_DIR}/config/bridge.yaml" "${APP_DATA_DIR}/data/config.yaml"
+    install -m 0644 -o 1000 -g 1000 "${APP_SRC_DIR}/config/bridge.yaml" "${APP_DATA_DIR}/data/config.yaml"
   else
     cat << 'EOF' > "${APP_DATA_DIR}/data/config.yaml"
 kaspad_address: "kaspad:16110"
@@ -22,10 +22,11 @@ instances:
   - stratum_port: ":5555"
     min_share_diff: 2048
 EOF
+    chown 1000:1000 "${APP_DATA_DIR}/data/config.yaml"
+    chmod 0644 "${APP_DATA_DIR}/data/config.yaml"
   fi
 fi
 
-chmod -R 0777 "${APP_DATA_DIR}/data" 2>/dev/null || true
-chmod -R 0777 "${APP_DATA_DIR}/kaspad_data" 2>/dev/null || true
-chmod 0666 "${APP_DATA_DIR}/data/config.yaml" 2>/dev/null || true
+chown -R 1000:1000 "${APP_DATA_DIR}/data" 2>/dev/null || true
+chown -R 1000:1000 "${APP_DATA_DIR}/kaspad_data" 2>/dev/null || true
 
