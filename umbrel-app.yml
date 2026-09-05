@@ -1,6 +1,6 @@
 manifestVersion: 1
 id: kaspa-stratum-manager
-name: Kaspa Solo Mining Console
+name: Kaspa Solo Mining Suite
 tagline: All-in-one solo mining stack with bundled Rusty Kaspad node and ASIC manager
 category: Crypto
 version: "2.0.0"

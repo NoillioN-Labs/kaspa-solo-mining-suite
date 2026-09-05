@@ -295,7 +295,7 @@ export const App: React.FC = () => {
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span className="logo-title">Kaspa Solo Mining Console</span>
+              <span className="logo-title">Kaspa Solo Mining Suite</span>
               <span className="badge-tag">Umbrel All-In-One</span>
             </div>
             <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>
