@@ -1,6 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { collector } from './collector.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.API_PORT || 3001;
@@ -98,6 +103,9 @@ app.get('/api/stats', (req, res) => {
     syncProgress: live.syncProgress,
     currentDaa: live.currentDaa,
     targetDaa: live.targetDaa,
+    mempoolTxCount: live.mempoolTxCount || 0,
+    headerCount: live.headerCount || 0,
+    difficulty: live.difficulty || 0,
   });
 });
 
@@ -173,20 +181,30 @@ app.post('/api/data/reset', (req, res) => {
 // 10. Live Logs Stream
 let recentLogs = [
   "[COLLECTOR] Initialized 24/7 background telemetry engine",
-  "[BRIDGE] Stratum listener binding to port 5555",
+  "[STRATUM] Bridge stratum listener binding to port 55555",
   "[KASPAD] Connecting to local node RPC on 18110",
 ];
 
 app.get('/api/logs', (req, res) => {
-  res.json({ logs: recentLogs });
+  const dynamicLogs = [...recentLogs];
+  if (collector.state.live.isSynced) {
+    dynamicLogs.push(`[KASPAD] Node synchronized with Kaspa network. Current DAA: ${collector.state.live.currentDaa}`);
+  } else if (collector.state.live.syncProgress > 0) {
+    dynamicLogs.push(`[KASPAD] Node syncing headers: ${collector.state.live.currentDaa} / ${collector.state.live.targetDaa} (${collector.state.live.syncProgress}%)`);
+  }
+  if (collector.state.live.activeMiners > 0) {
+    dynamicLogs.push(`[STRATUM] Active ASIC workers connected: ${collector.state.live.activeMiners}. Total hashrate: ${collector.state.live.totalHashrate.toFixed(1)} TH/s`);
+  }
+  res.json({ logs: dynamicLogs });
 });
 
 // Health metrics
 app.get('/api/health', (req, res) => {
   res.json({
-    temp: 68,
-    fan: 4200,
-    status: 'healthy',
+    status: collector.state.live.isSynced ? 'healthy' : 'syncing',
+    activeMiners: collector.state.live.activeMiners,
+    totalHashrate: collector.state.live.totalHashrate,
+    nodeSynced: collector.state.live.isSynced,
   });
 });
 
@@ -194,13 +212,35 @@ app.get('/api/health', (req, res) => {
 app.get('/api/fiat', (req, res) => {
   res.json({
     price: 0.174,
-    dailyKas: 0,
-    dailyFiat: 0,
     currency: "USD",
   });
 });
 
-app.listen(port, () => {
-  console.log(`Aggregator API listening on port ${port}`);
+// 11. Settings Endpoint Alias (for frontend compatibility)
+app.post('/api/settings', (req, res) => {
+  const { preset } = req.body;
+  const match = PRESET_CATALOG.find(p => p.id === preset);
+  if (match) {
+    activePreset = preset;
+    console.log(`[SETTINGS] Preset updated to: ${preset} (${match.name})`);
+    res.json({ success: true, activePreset });
+  } else {
+    res.status(400).json({ error: 'Invalid preset ID' });
+  }
 });
+
+// Serve compiled static production frontend
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+
+// SPA fallback for all non-API GET routes (Express 5 compatible)
+app.get('/{0,}', (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
+
+const listenPort = process.env.PORT || process.env.API_PORT || 8080;
+app.listen(listenPort, '0.0.0.0', () => {
+  console.log(`Kaspa Solo Mining Suite server listening on 0.0.0.0:${listenPort}`);
+});
+
 

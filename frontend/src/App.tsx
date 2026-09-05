@@ -15,7 +15,6 @@ import {
   Trophy,
   Menu,
   X,
-  PieChart,
   Info,
   Network,
   Radio,
@@ -38,6 +37,7 @@ interface StatsData {
   invalidShares: number;
   luckEstimate: string;
   nodeStatus: string;
+  mempoolTxCount?: number;
 }
 
 interface PresetItem {
@@ -61,20 +61,62 @@ interface NodeSyncInfo {
   phase: "headers" | "utxo" | "synced";
 }
 
+interface WorkerItem {
+  id: string;
+  name: string;
+  ip: string;
+  hashrate: number;
+  difficulty: number;
+  shares: number;
+  effort: number;
+  status: "online" | "idle";
+  lastShare: string;
+}
+
+interface PeerItem {
+  id: string;
+  address: string;
+  direction: "inbound" | "outbound";
+  ping: number;
+  version: string;
+}
+
+interface MinedBlockItem {
+  id?: string;
+  hash: string;
+  shortHash?: string;
+  worker?: string;
+  effort?: number;
+  reward: number;
+  rewardSompi?: string;
+  blueScore?: string | number;
+  timestamp: number;
+  timeAgo?: string;
+  status?: string;
+  txs?: number;
+}
+
 export const App: React.FC = () => {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [activeTab, setActiveTab] = useState<"overview" | "miners" | "blocks" | "node" | "settings" | "logs">("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Node synchronization state (simulates initial 1-2 day DAG catch-up vs synced live state)
+  // Live collections from backend collector
+  const [workers, setWorkers] = useState<WorkerItem[]>([]);
+  const [peers, setPeers] = useState<PeerItem[]>([]);
+  const [peerCounts, setPeerCounts] = useState<{ inbound: number; outbound: number; total: number }>({ inbound: 0, outbound: 0, total: 0 });
+  const [minedBlocks, setMinedBlocks] = useState<MinedBlockItem[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  // Node synchronization state strictly reflecting kaspad RPC
   const [nodeSync, setNodeSync] = useState<NodeSyncInfo>({
     isSynced: false,
-    progressPercent: 88.6,
-    currentHeaderDaa: 72140200,
-    targetHeaderDaa: 81420950,
-    currentUtxoDaa: 71080000,
-    targetUtxoDaa: 81420950,
-    estimatedRemaining: "~4h 32m remaining",
+    progressPercent: 0,
+    currentHeaderDaa: 0,
+    targetHeaderDaa: 0,
+    currentUtxoDaa: 0,
+    targetUtxoDaa: 0,
+    estimatedRemaining: "Connecting...",
     phase: "headers",
   });
 
@@ -122,6 +164,7 @@ export const App: React.FC = () => {
     invalidShares: 0,
     luckEstimate: "Calculating...",
     nodeStatus: "Connecting...",
+    mempoolTxCount: 0,
   });
 
   const [presets, setPresets] = useState<PresetItem[]>([]);
@@ -133,9 +176,10 @@ export const App: React.FC = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
 
-  // Poll live stats every 3 seconds
+  // Poll live stats, workers, peers, rewards, and logs every 3-5 seconds
   useEffect(() => {
-    const fetchLiveStats = () => {
+    const fetchAllData = () => {
+      // 1. Stats & Node Sync
       fetch("/api/stats")
         .then((r) => r.json())
         .then((data) => {
@@ -148,25 +192,73 @@ export const App: React.FC = () => {
               invalidShares: data.invalidShares || 0,
               luckEstimate: data.luckEstimate || "N/A",
               nodeStatus: data.nodeStatus || "Connected",
+              mempoolTxCount: Number(data.mempoolTxCount || 0),
             });
             if (data.isSynced !== undefined) {
+              const isSyn = Boolean(data.isSynced);
+              const progress = Number(data.syncProgress || (isSyn ? 100 : 0));
               setNodeSync((prev) => ({
                 ...prev,
-                isSynced: Boolean(data.isSynced),
-                progressPercent: Number(data.syncProgress || (data.isSynced ? 100 : 88.6)),
-                currentHeaderDaa: Number(data.currentDaa || prev.currentHeaderDaa),
-                targetHeaderDaa: Number(data.targetDaa || prev.targetHeaderDaa),
+                isSynced: isSyn,
+                progressPercent: progress,
+                currentHeaderDaa: Number(data.currentDaa || 0),
+                targetHeaderDaa: Number(data.targetDaa || 0),
+                estimatedRemaining: isSyn ? "Synchronized" : (progress > 0 ? `~${(100 - progress).toFixed(1)}% remaining` : "Calculating..."),
+                phase: isSyn ? "synced" : "headers",
               }));
             }
           }
         })
-        .catch(() => {
-          // Graceful offline fallback
-        });
+        .catch(() => {});
+
+      // 2. Active Workers
+      fetch("/api/workers")
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setWorkers(data);
+          }
+        })
+        .catch(() => {});
+
+      // 3. Connected Peers
+      fetch("/api/peers")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data) {
+            if (Array.isArray(data.peers)) setPeers(data.peers);
+            setPeerCounts({
+              inbound: Number(data.inbound || 0),
+              outbound: Number(data.outbound || 0),
+              total: Number(data.total || 0),
+            });
+          }
+        })
+        .catch(() => {});
+
+      // 4. Mined Blocks Rewards
+      fetch("/api/rewards")
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setMinedBlocks(data);
+          }
+        })
+        .catch(() => {});
+
+      // 5. Dynamic Console Stream
+      fetch("/api/logs")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && Array.isArray(data.logs)) {
+            setLogs(data.logs);
+          }
+        })
+        .catch(() => {});
     };
 
-    fetchLiveStats();
-    const interval = setInterval(fetchLiveStats, 3000);
+    fetchAllData();
+    const interval = setInterval(fetchAllData, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -482,25 +574,28 @@ export const App: React.FC = () => {
                   <Zap size={18} color="var(--kaspa-cyan)" />
                 </div>
                 <div className="stat-value">{stats.totalHashrate}</div>
-                <div className="stat-subtext">3 ASIC Miners Online</div>
+                <div className="stat-subtext">{stats.activeMiners} ASIC Miner{stats.activeMiners === 1 ? "" : "s"} Online</div>
               </div>
 
               {/* 24-Hour Solo Blocks & Kaspa Yield Highlight */}
               <div
                 className="glass-panel stat-card"
                 style={{
-                  background: "linear-gradient(145deg, rgba(245, 158, 11, 0.08), rgba(17, 24, 39, 0.85))",
-                  border: "1px solid rgba(245, 158, 11, 0.35)",
-                  boxShadow: "0 0 16px rgba(245, 158, 11, 0.12)",
+                  background: minedBlocks.length > 0 ? "linear-gradient(145deg, rgba(245, 158, 11, 0.08), rgba(17, 24, 39, 0.85))" : "var(--bg-surface)",
+                  border: minedBlocks.length > 0 ? "1px solid rgba(245, 158, 11, 0.35)" : "1px solid var(--border-subtle)",
                 }}
               >
                 <div className="stat-header">
-                  <span style={{ color: "var(--accent-gold)", fontWeight: 700 }}>BLOCKS (LAST 24H)</span>
-                  <Trophy size={18} color="var(--accent-gold)" />
+                  <span style={{ color: minedBlocks.length > 0 ? "var(--accent-gold)" : "var(--text-muted)", fontWeight: 700 }}>BLOCKS (LAST 24H)</span>
+                  <Trophy size={18} color={minedBlocks.length > 0 ? "var(--accent-gold)" : "var(--text-muted)"} />
                 </div>
-                <div className="stat-value" style={{ color: "var(--accent-gold)" }}>3 Blocks</div>
-                <div className="stat-subtext" style={{ color: "#fff", fontWeight: 600 }}>
-                  +407.55 KAS <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(≈ $69.28)</span>
+                <div className="stat-value" style={{ color: minedBlocks.length > 0 ? "var(--accent-gold)" : "#fff" }}>
+                  {minedBlocks.filter(b => Date.now() - b.timestamp < 86400000).length} Blocks
+                </div>
+                <div className="stat-subtext" style={{ color: "var(--text-secondary)" }}>
+                  {minedBlocks.length > 0
+                    ? `+${minedBlocks.reduce((acc, b) => acc + (b.reward || 0), 0).toFixed(2)} KAS Total`
+                    : "No solo blocks mined yet"}
                 </div>
               </div>
 
@@ -510,7 +605,11 @@ export const App: React.FC = () => {
                   <ShieldCheck size={18} color="var(--status-success)" />
                 </div>
                 <div className="stat-value">{stats.acceptedShares.toLocaleString()}</div>
-                <div className="stat-subtext">99.9% Efficiency (12 Stales)</div>
+                <div className="stat-subtext">
+                  {stats.acceptedShares + stats.staleShares > 0
+                    ? `${((stats.acceptedShares / (stats.acceptedShares + stats.staleShares + stats.invalidShares)) * 100).toFixed(1)}% Efficiency (${stats.staleShares} Stales)`
+                    : "Waiting for miner shares"}
+                </div>
               </div>
 
               <div className="glass-panel stat-card">
@@ -531,7 +630,7 @@ export const App: React.FC = () => {
                   {nodeSync.isSynced ? "Synchronized" : `Syncing (${nodeSync.progressPercent}%)`}
                 </div>
                 {nodeSync.isSynced ? (
-                  <div className="stat-subtext">Local P2P Peer Height: 81,420,950</div>
+                  <div className="stat-subtext">DAA Height: {nodeSync.currentHeaderDaa > 0 ? nodeSync.currentHeaderDaa.toLocaleString() : "Live"}</div>
                 ) : (
                   <div style={{ marginTop: "0.5rem" }}>
                     <div className="sync-progress-bar-bg" style={{ height: "6px" }}>
@@ -539,7 +638,7 @@ export const App: React.FC = () => {
                     </div>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
                       <span>{nodeSync.estimatedRemaining}</span>
-                      <span>88.6%</span>
+                      <span>{nodeSync.progressPercent}%</span>
                     </div>
                   </div>
                 )}
@@ -592,14 +691,18 @@ export const App: React.FC = () => {
                   </div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "1rem" }}>
                     <div style={{ fontSize: "3rem", fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--kaspa-cyan)", textShadow: "0 0 25px var(--kaspa-cyan-glow)", lineHeight: 1 }}>
-                      24.5 <span style={{ fontSize: "1.75rem", color: "#fff" }}>TH/s</span>
+                      {stats.totalHashrate}
                     </div>
-                    <span style={{ background: "rgba(16, 185, 129, 0.15)", color: "var(--status-success)", border: "1px solid rgba(16, 185, 129, 0.3)", padding: "0.25rem 0.6rem", borderRadius: "12px", fontSize: "0.8rem", fontWeight: 600 }}>
-                      +2.4% vs 24h avg
-                    </span>
+                    {stats.activeMiners > 0 && (
+                      <span style={{ background: "rgba(16, 185, 129, 0.15)", color: "var(--status-success)", border: "1px solid rgba(16, 185, 129, 0.3)", padding: "0.25rem 0.6rem", borderRadius: "12px", fontSize: "0.8rem", fontWeight: 600 }}>
+                        {stats.activeMiners} Active
+                      </span>
+                    )}
                   </div>
                   <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "0.5rem" }}>
-                    Cumulative real-time hash fidelity from all connected ASIC workers
+                    {stats.activeMiners > 0
+                      ? "Cumulative real-time hash fidelity from all connected ASIC workers"
+                      : "Point your ASIC miner stratum client to this Umbrel node to begin mining"}
                   </p>
                 </div>
 
@@ -607,20 +710,34 @@ export const App: React.FC = () => {
                 <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
                   <div style={{ background: "var(--bg-primary)", padding: "0.75rem 1.25rem", borderRadius: "10px", border: "1px solid var(--border-subtle)", textAlign: "center" }}>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>ONLINE WORKERS</div>
-                    <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fff", fontFamily: "var(--font-mono)" }}>2 / 2</div>
-                    <div style={{ fontSize: "0.7rem", color: "var(--status-success)" }}>100% Operational</div>
+                    <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fff", fontFamily: "var(--font-mono)" }}>
+                      {stats.activeMiners} / {workers.length > 0 ? workers.length : stats.activeMiners}
+                    </div>
+                    <div style={{ fontSize: "0.7rem", color: stats.activeMiners > 0 ? "var(--status-success)" : "var(--text-muted)" }}>
+                      {stats.activeMiners > 0 ? "Operational" : "No miners active"}
+                    </div>
                   </div>
 
                   <div style={{ background: "var(--bg-primary)", padding: "0.75rem 1.25rem", borderRadius: "10px", border: "1px solid var(--border-subtle)", textAlign: "center" }}>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>FLEET EFFORT</div>
-                    <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#10b981", fontFamily: "var(--font-mono)" }}>82%</div>
+                    <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--kaspa-cyan)", fontFamily: "var(--font-mono)" }}>
+                      {workers.length > 0
+                        ? `${Math.round(workers.reduce((acc, w) => acc + (w.effort || 0), 0) / workers.length)}%`
+                        : "0%"}
+                    </div>
                     <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Current Round</div>
                   </div>
 
                   <div style={{ background: "var(--bg-primary)", padding: "0.75rem 1.25rem", borderRadius: "10px", border: "1px solid var(--border-subtle)", textAlign: "center" }}>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>VALID SHARES</div>
-                    <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--kaspa-cyan)", fontFamily: "var(--font-mono)" }}>14,820</div>
-                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>99.9% Accepted</div>
+                    <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--kaspa-cyan)", fontFamily: "var(--font-mono)" }}>
+                      {stats.acceptedShares.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                      {stats.acceptedShares + stats.staleShares > 0
+                        ? `${((stats.acceptedShares / (stats.acceptedShares + stats.staleShares + stats.invalidShares)) * 100).toFixed(1)}% Accepted`
+                        : "0 Accepted"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -635,8 +752,8 @@ export const App: React.FC = () => {
                   </p>
                 </div>
                 <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--status-success)" }}></span>
-                  2 Workers Online
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: stats.activeMiners > 0 ? "var(--status-success)" : "var(--text-muted)" }}></span>
+                  {stats.activeMiners} Worker{stats.activeMiners === 1 ? "" : "s"} Online
                 </span>
               </div>
 
@@ -651,85 +768,77 @@ export const App: React.FC = () => {
                     <th style={{ padding: "0.75rem" }}>ACCEPTED</th>
                     <th style={{ padding: "0.75rem" }}>STALE</th>
                     <th style={{ padding: "0.75rem" }}>DIFF</th>
-                    <th style={{ padding: "0.75rem" }}>LATENCY</th>
+                    <th style={{ padding: "0.75rem" }}>LAST SHARE</th>
                     <th style={{ padding: "0.75rem" }}>STATUS</th>
                   </tr>
                 </thead>
                 <tbody style={{ fontFamily: "var(--font-mono)", fontSize: "0.9rem" }}>
-                  <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <td style={{ padding: "0.85rem 0.75rem", color: "#fff" }}>
-                      <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                        <Cpu size={15} color="var(--kaspa-cyan)" /> iceriver_ks7_01
-                      </div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>192.168.1.45 (IceRiver KS7)</div>
-                    </td>
-                    <td style={{ padding: "0.85rem 0.75rem", color: "var(--kaspa-cyan)", fontWeight: 700 }}>20.2 TH/s</td>
-                    <td style={{ padding: "0.85rem 0.75rem" }}>
-                      <span
-                        title="Current Round Effort: 68% of statistical target hashes evaluated (Lucky)"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.3rem",
-                          fontWeight: 700,
-                          color: "#10b981", // Green: Under 100% (Lucky round)
-                          background: "rgba(16, 185, 129, 0.12)",
-                          padding: "0.2rem 0.5rem",
-                          borderRadius: "4px",
-                          border: "1px solid rgba(16, 185, 129, 0.3)",
-                        }}
-                      >
-                        68%
-                      </span>
-                    </td>
-                    <td style={{ padding: "0.85rem 0.75rem" }}>11,240</td>
-                    <td style={{ padding: "0.85rem 0.75rem", color: "var(--status-warning)" }}>8 (0.07%)</td>
-                    <td style={{ padding: "0.85rem 0.75rem" }}>8,192</td>
-                    <td style={{ padding: "0.85rem 0.75rem", color: "var(--text-secondary)" }}>12ms</td>
-                    <td style={{ padding: "0.85rem 0.75rem" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.2rem 0.6rem", borderRadius: "12px", fontSize: "0.75rem", background: "rgba(16, 185, 129, 0.15)", color: "var(--status-success)", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
-                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--status-success)" }}></span>
-                        Active
-                      </span>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <td style={{ padding: "0.85rem 0.75rem", color: "#fff" }}>
-                      <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                        <Cpu size={15} color="var(--kaspa-cyan)" /> antminer_ks5_01
-                      </div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>192.168.1.72 (Bitmain KS5)</div>
-                    </td>
-                    <td style={{ padding: "0.85rem 0.75rem", color: "var(--kaspa-cyan)", fontWeight: 700 }}>4.3 TH/s</td>
-                    <td style={{ padding: "0.85rem 0.75rem" }}>
-                      <span
-                        title="Current Round Effort: 142% of statistical target hashes evaluated (Unlucky/Hard round)"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.3rem",
-                          fontWeight: 700,
-                          color: "#f59e0b", // Yellow/Orange: Over 100% (High effort)
-                          background: "rgba(245, 158, 11, 0.12)",
-                          padding: "0.2rem 0.5rem",
-                          borderRadius: "4px",
-                          border: "1px solid rgba(245, 158, 11, 0.3)",
-                        }}
-                      >
-                        142%
-                      </span>
-                    </td>
-                    <td style={{ padding: "0.85rem 0.75rem" }}>3,580</td>
-                    <td style={{ padding: "0.85rem 0.75rem", color: "var(--status-warning)" }}>4 (0.11%)</td>
-                    <td style={{ padding: "0.85rem 0.75rem" }}>4,096</td>
-                    <td style={{ padding: "0.85rem 0.75rem", color: "var(--text-secondary)" }}>18ms</td>
-                    <td style={{ padding: "0.85rem 0.75rem" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.2rem 0.6rem", borderRadius: "12px", fontSize: "0.75rem", background: "rgba(16, 185, 129, 0.15)", color: "var(--status-success)", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
-                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--status-success)" }}></span>
-                        Active
-                      </span>
-                    </td>
-                  </tr>
+                  {workers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{ padding: "2.5rem 1rem", textAlign: "center", color: "var(--text-muted)" }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+                          <Cpu size={32} color="var(--border-subtle)" />
+                          <div style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 600 }}>No ASIC Miners Connected</div>
+                          <div style={{ fontSize: "0.85rem", maxWidth: "480px", color: "var(--text-secondary)" }}>
+                            Point your IceRiver, Antminer, Desiwe, or Goldshell miner to <strong style={{ color: "var(--kaspa-cyan)" }}>stratum+tcp://&lt;YOUR_UMBREL_IP&gt;:55555</strong> to start hashing.
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    workers.map((w, idx) => (
+                      <tr key={w.id || idx} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                        <td style={{ padding: "0.85rem 0.75rem", color: "#fff" }}>
+                          <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                            <Cpu size={15} color="var(--kaspa-cyan)" /> {w.name}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{w.ip}</div>
+                        </td>
+                        <td style={{ padding: "0.85rem 0.75rem", color: "var(--kaspa-cyan)", fontWeight: 700 }}>
+                          {w.hashrate > 0 ? `${(w.hashrate / 1e12).toFixed(2)} TH/s` : "0.0 TH/s"}
+                        </td>
+                        <td style={{ padding: "0.85rem 0.75rem" }}>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.3rem",
+                              fontWeight: 700,
+                              color: (w.effort || 0) < 100 ? "#10b981" : "#f59e0b",
+                              background: (w.effort || 0) < 100 ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                              padding: "0.2rem 0.5rem",
+                              borderRadius: "4px",
+                              border: `1px solid ${(w.effort || 0) < 100 ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                            }}
+                          >
+                            {w.effort || 0}%
+                          </span>
+                        </td>
+                        <td style={{ padding: "0.85rem 0.75rem" }}>{(w.shares || 0).toLocaleString()}</td>
+                        <td style={{ padding: "0.85rem 0.75rem", color: "var(--status-warning)" }}>0</td>
+                        <td style={{ padding: "0.85rem 0.75rem" }}>{(w.difficulty || 1).toLocaleString()}</td>
+                        <td style={{ padding: "0.85rem 0.75rem", color: "var(--text-secondary)" }}>
+                          {w.lastShare ? new Date(w.lastShare).toLocaleTimeString() : "N/A"}
+                        </td>
+                        <td style={{ padding: "0.85rem 0.75rem" }}>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.35rem",
+                            padding: "0.2rem 0.6rem",
+                            borderRadius: "12px",
+                            fontSize: "0.75rem",
+                            background: w.status === "online" ? "rgba(16, 185, 129, 0.15)" : "rgba(107, 114, 128, 0.15)",
+                            color: w.status === "online" ? "var(--status-success)" : "var(--text-muted)",
+                            border: `1px solid ${w.status === "online" ? "rgba(16, 185, 129, 0.3)" : "rgba(107, 114, 128, 0.3)"}`,
+                          }}>
+                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: w.status === "online" ? "var(--status-success)" : "var(--text-muted)" }}></span>
+                            {w.status === "online" ? "Active" : "Idle"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -744,11 +853,12 @@ export const App: React.FC = () => {
                   <span style={{ color: "#f59e0b", fontWeight: 600 }}>&gt;100% Effort</span> (Below Avg Luck)
                 </span>
               </div>
-              <span>Total Fleet: 24.5 TH/s</span>
+              <span>Total Fleet: {stats.totalHashrate}</span>
             </div>
           </div>
         </div>
       )}
+
 
         {activeTab === "settings" && (
           <div className="glass-panel" style={{ padding: "1.5rem" }}>
@@ -1101,7 +1211,7 @@ export const App: React.FC = () => {
                   <span>TOTAL BLOCKS MINED</span>
                   <Trophy size={18} color="var(--accent-gold)" />
                 </div>
-                <div className="stat-value" style={{ color: "var(--accent-gold)" }}>4 Blocks</div>
+                <div className="stat-value" style={{ color: "var(--accent-gold)" }}>{minedBlocks.length} Blocks</div>
                 <div className="stat-subtext">All-time Solo Wins</div>
               </div>
 
@@ -1110,8 +1220,12 @@ export const App: React.FC = () => {
                   <span>TOTAL REWARDS EARNED</span>
                   <Sparkles size={18} color="var(--kaspa-cyan)" />
                 </div>
-                <div className="stat-value">543.40 KAS</div>
-                <div className="stat-subtext">≈ $92.38 USD (Subsidies + Fees)</div>
+                <div className="stat-value">
+                  {minedBlocks.reduce((acc, b) => acc + (b.reward || 0), 0).toFixed(2)} KAS
+                </div>
+                <div className="stat-subtext">
+                  ≈ ${(minedBlocks.reduce((acc, b) => acc + (b.reward || 0), 0) * 0.174).toFixed(2)} USD
+                </div>
               </div>
 
               <div className="glass-panel stat-card">
@@ -1119,8 +1233,12 @@ export const App: React.FC = () => {
                   <span>LATEST SOLO WIN</span>
                   <Clock size={18} color="var(--status-success)" />
                 </div>
-                <div className="stat-value" style={{ fontSize: "1.25rem", color: "var(--status-success)" }}>18 mins ago</div>
-                <div className="stat-subtext">Worker: iceriver_ks7_01</div>
+                <div className="stat-value" style={{ fontSize: "1.25rem", color: minedBlocks.length > 0 ? "var(--status-success)" : "var(--text-muted)" }}>
+                  {minedBlocks[0]?.timeAgo || (minedBlocks.length > 0 ? "Recently" : "None yet")}
+                </div>
+                <div className="stat-subtext">
+                  {minedBlocks[0]?.worker ? `Worker: ${minedBlocks[0].worker}` : "Waiting for first win"}
+                </div>
               </div>
 
               <div className="glass-panel stat-card">
@@ -1128,144 +1246,12 @@ export const App: React.FC = () => {
                   <span>DAG BLUE STATUS</span>
                   <ShieldCheck size={18} color="var(--kaspa-cyan)" />
                 </div>
-                <div className="stat-value" style={{ fontSize: "1.25rem" }}>100% Blue</div>
-                <div className="stat-subtext">4/4 Accepted DAG Blocks</div>
-              </div>
-            </div>
-
-            {/* Rewards Fee Composition & Relationship Visualization */}
-            <div className="glass-panel reward-breakdown-card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem", marginBottom: "1rem" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <PieChart size={20} color="var(--kaspa-cyan)" />
-                    <h3 style={{ margin: 0 }}>Reward Fee Composition & Historical Trends</h3>
-                  </div>
-                  <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "4px" }}>
-                    Analysis of the 3 fee components across mined solo blocks: Base Subsidy, Mempool Priority Fees, and DAG Merged Inclusions
-                  </p>
+                <div className="stat-value" style={{ fontSize: "1.25rem" }}>
+                  {minedBlocks.length > 0 ? "100% Blue" : "N/A"}
                 </div>
-                <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", fontSize: "0.8rem" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                    <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "var(--kaspa-cyan)" }}></span>
-                    <span>Base Subsidy (92.4%)</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                    <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#38bdf8" }}></span>
-                    <span>Priority Tx Fees (5.8%)</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                    <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "var(--accent-gold)" }}></span>
-                    <span>DAG Merge Rewards (1.8%)</span>
-                  </div>
+                <div className="stat-subtext">
+                  {minedBlocks.length > 0 ? `${minedBlocks.length}/${minedBlocks.length} Accepted DAG Blocks` : "0 verified blocks"}
                 </div>
-              </div>
-
-              {/* Cumulative Stacked Percentage Bar */}
-              <div style={{ marginBottom: "1.5rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "4px" }}>
-                  <span>Portfolio Distribution (Last 4 Blocks Total: 543.40 KAS)</span>
-                  <span>100% Attributed</span>
-                </div>
-                <div className="reward-bar-container">
-                  <div
-                    className="reward-bar-segment"
-                    style={{ width: "92.4%", background: "linear-gradient(90deg, #059669, var(--kaspa-cyan))" }}
-                    title="Base Block Subsidy: 502.10 KAS (92.4%)"
-                  ></div>
-                  <div
-                    className="reward-bar-segment"
-                    style={{ width: "5.8%", background: "linear-gradient(90deg, #0284c7, #38bdf8)" }}
-                    title="Transaction Priority Fees: 31.52 KAS (5.8%)"
-                  ></div>
-                  <div
-                    className="reward-bar-segment"
-                    style={{ width: "1.8%", background: "linear-gradient(90deg, #d97706, var(--accent-gold))" }}
-                    title="DAG Merge Inclusions: 9.78 KAS (1.8%)"
-                  ></div>
-                </div>
-              </div>
-
-              {/* Historical Per-Block Fee Breakdown Cards */}
-              <div className="reward-breakdown-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-                {[
-                  {
-                    title: "Block #81,420,914 (Latest)",
-                    time: "18m ago",
-                    total: "135.85 KAS",
-                    subsidy: "125.50 KAS (92.4%)",
-                    txFees: "8.15 KAS (6.0%)",
-                    dagFees: "2.20 KAS (1.6%)",
-                    trend: "+1.2% fees vs avg",
-                  },
-                  {
-                    title: "Block #81,411,402",
-                    time: "3h 12m ago",
-                    total: "135.85 KAS",
-                    subsidy: "125.50 KAS (92.4%)",
-                    txFees: "7.80 KAS (5.7%)",
-                    dagFees: "2.55 KAS (1.9%)",
-                    trend: "Heavy mempool traffic",
-                  },
-                  {
-                    title: "Block #81,398,110",
-                    time: "7h 45m ago",
-                    total: "135.85 KAS",
-                    subsidy: "125.50 KAS (92.4%)",
-                    txFees: "8.42 KAS (6.2%)",
-                    dagFees: "1.93 KAS (1.4%)",
-                    trend: "Peak fee spike",
-                  },
-                  {
-                    title: "Block #81,372,890",
-                    time: "1d 2h ago",
-                    total: "135.85 KAS",
-                    subsidy: "125.50 KAS (92.4%)",
-                    txFees: "7.15 KAS (5.3%)",
-                    dagFees: "3.20 KAS (2.3%)",
-                    trend: "High DAG confluence",
-                  },
-                ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRadius: "8px",
-                      padding: "1rem",
-                      fontSize: "0.8rem",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
-                      <span style={{ fontWeight: 600, color: "#fff" }}>{item.title}</span>
-                    </div>
-                    <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginBottom: "0.75rem" }}>
-                      {item.time} • <span style={{ color: "var(--kaspa-cyan)", fontWeight: 600 }}>{item.total}</span>
-                    </div>
-                    
-                    {/* Micro Stacked Bar */}
-                    <div style={{ height: "6px", display: "flex", borderRadius: "3px", overflow: "hidden", marginBottom: "0.75rem", background: "rgba(255,255,255,0.1)" }}>
-                      <div style={{ width: "92.4%", background: "var(--kaspa-cyan)" }}></div>
-                      <div style={{ width: "5.8%", background: "#38bdf8" }}></div>
-                      <div style={{ width: "1.8%", background: "var(--accent-gold)" }}></div>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", fontSize: "0.75rem" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "var(--text-secondary)" }}>Base Subsidy:</span>
-                        <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{item.subsidy}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "var(--text-secondary)" }}>Tx Priority:</span>
-                        <span style={{ color: "#38bdf8", fontFamily: "var(--font-mono)" }}>{item.txFees}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "var(--text-secondary)" }}>DAG Merge:</span>
-                        <span style={{ color: "var(--accent-gold)", fontFamily: "var(--font-mono)" }}>{item.dagFees}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -1292,182 +1278,113 @@ export const App: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}>
-                    {[
-                      {
-                        id: "block-1",
-                        hash: "0000000000003b8793b827e85c2c9d64fbe35aa4d7f57375a0029b35a8bc3188",
-                        shortHash: "00000000...a8bc3188",
-                        worker: "iceriver_ks7_01",
-                        effort: 68,
-                        reward: 135.85,
-                        rewardSompi: "13585000000",
-                        blueScore: "81,420,914",
-                        timeAgo: "18m ago",
-                        status: "Blue Block",
-                        txs: 42,
-                      },
-                      {
-                        id: "block-2",
-                        hash: "00000000000018f4a9c811200b39e44ffc9082da171349a21b33902f8841a129",
-                        shortHash: "00000000...8841a129",
-                        worker: "iceriver_ks7_01",
-                        effort: 118,
-                        reward: 135.85,
-                        rewardSompi: "13585000000",
-                        blueScore: "81,411,402",
-                        timeAgo: "3h 12m ago",
-                        status: "Blue Block",
-                        txs: 29,
-                      },
-                      {
-                        id: "block-3",
-                        hash: "0000000000005a90d8ef6a084c7e3f22194bbbc20811e582d921fa4b7b2518e3",
-                        shortHash: "00000000...7b2518e3",
-                        worker: "antminer_ks5_01",
-                        effort: 190,
-                        reward: 135.85,
-                        rewardSompi: "13585000000",
-                        blueScore: "81,398,110",
-                        timeAgo: "7h 45m ago",
-                        status: "Blue Block",
-                        txs: 58,
-                      },
-                      {
-                        id: "block-4",
-                        hash: "00000000000021c38e9a21f70912cb84918e7d23ab5f190ca881734bc109f582",
-                        shortHash: "00000000...c109f582",
-                        worker: "iceriver_ks7_01",
-                        effort: 38,
-                        reward: 135.85,
-                        rewardSompi: "13585000000",
-                        blueScore: "81,372,890",
-                        timeAgo: "1d 2h ago",
-                        status: "Blue Block",
-                        txs: 34,
-                      },
-                    ].map((b) => {
-                      // Color coding for effort:
-                      // < 100%: Green (Lucky - required less than average shares)
-                      // 100% - 150%: Orange/Yellow (Slightly tough round)
-                      // > 150%: Crimson/Red (Unlucky round - high effort)
-                      const effortColor =
-                        b.effort < 100
-                          ? "#10b981"
-                          : b.effort <= 150
-                          ? "#f59e0b"
-                          : "#ef4444";
-                      const effortBg =
-                        b.effort < 100
-                          ? "rgba(16, 185, 129, 0.12)"
-                          : b.effort <= 150
-                          ? "rgba(245, 158, 11, 0.12)"
-                          : "rgba(239, 68, 68, 0.12)";
-                      const effortBorder =
-                        b.effort < 100
-                          ? "rgba(16, 185, 129, 0.3)"
-                          : b.effort <= 150
-                          ? "rgba(245, 158, 11, 0.3)"
-                          : "rgba(239, 68, 68, 0.3)";
-
-                      return (
-                        <tr key={b.id} style={{ borderBottom: "1px solid var(--border-subtle)", transition: "background 0.2s ease" }}>
-                          <td style={{ padding: "0.85rem 0.75rem" }}>
-                            <div style={{ color: "#fff", fontWeight: 600 }}>#{b.blueScore}</div>
-                            <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>{b.timeAgo}</div>
-                          </td>
-                          <td style={{ padding: "0.85rem 0.75rem" }}>
-                            <span
-                              title={b.hash}
-                              style={{
-                                color: "var(--kaspa-cyan)",
-                                background: "rgba(112, 199, 186, 0.08)",
-                                padding: "0.2rem 0.5rem",
-                                borderRadius: "4px",
-                                border: "1px solid rgba(112, 199, 186, 0.2)",
-                                cursor: "pointer",
-                              }}
-                            >
-                              {b.shortHash}
-                            </span>
-                            <span style={{ marginLeft: "0.5rem", color: "var(--text-muted)", fontSize: "0.75rem" }}>({b.txs} txs)</span>
-                          </td>
-                          <td style={{ padding: "0.85rem 0.75rem", color: "#fff" }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
-                              <Cpu size={14} color="var(--text-muted)" /> {b.worker}
-                            </span>
-                          </td>
-                          <td style={{ padding: "0.85rem 0.75rem" }}>
-                            <span
-                              title={`Effort: ${b.effort}%. Theoretical expected difficulty vs actual hashes submitted.`}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                fontWeight: 700,
-                                color: effortColor,
-                                background: effortBg,
-                                border: `1px solid ${effortBorder}`,
-                                padding: "0.2rem 0.55rem",
-                                borderRadius: "4px",
-                              }}
-                            >
-                              {b.effort}%
-                            </span>
-                          </td>
-                          <td style={{ padding: "0.85rem 0.75rem" }}>
-                            <span style={{ color: "var(--accent-gold)", fontWeight: 700 }}>+{b.reward.toFixed(2)} KAS</span>
-                            <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>≈ ${(b.reward * 0.17).toFixed(2)} USD</div>
-                          </td>
-                          <td style={{ padding: "0.85rem 0.75rem" }}>
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "0.35rem",
-                                padding: "0.2rem 0.6rem",
-                                borderRadius: "12px",
-                                fontSize: "0.75rem",
-                                background: "rgba(16, 185, 129, 0.15)",
-                                color: "var(--status-success)",
-                                border: "1px solid rgba(16, 185, 129, 0.3)",
-                              }}
-                            >
-                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--status-success)" }}></span>
-                              {b.status}
-                            </span>
-                          </td>
-                          <td style={{ padding: "0.85rem 0.75rem", textAlign: "right" }}>
-                            <a
-                              href={`https://explorer.kaspa.org/blocks/${b.hash}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "0.35rem",
-                                background: "transparent",
-                                border: "1px solid var(--border-subtle)",
-                                color: "var(--text-secondary)",
-                                padding: "0.3rem 0.6rem",
-                                borderRadius: "6px",
-                                textDecoration: "none",
-                                fontSize: "0.75rem",
-                                transition: "all 0.2s ease",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = "var(--kaspa-cyan)";
-                                e.currentTarget.style.color = "var(--kaspa-cyan)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = "var(--border-subtle)";
-                                e.currentTarget.style.color = "var(--text-secondary)";
-                              }}
-                            >
-                              Explorer <ExternalLink size={12} />
-                            </a>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {minedBlocks.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ padding: "2.5rem 1rem", textAlign: "center", color: "var(--text-muted)" }}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+                            <Award size={36} color="var(--border-subtle)" />
+                            <div style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 600 }}>No Solo Blocks Mined Yet</div>
+                            <div style={{ fontSize: "0.85rem", maxWidth: "480px", color: "var(--text-secondary)" }}>
+                              When your ASIC miner solves a valid network block, it will be validated and permanently logged here with transaction fees.
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      minedBlocks.map((b, idx) => {
+                        const effortColor = (b.effort || 0) < 100 ? "#10b981" : (b.effort || 0) <= 150 ? "#f59e0b" : "#ef4444";
+                        const shortHash = b.shortHash || `${b.hash.slice(0, 8)}...${b.hash.slice(-8)}`;
+                        return (
+                          <tr key={b.id || idx} style={{ borderBottom: "1px solid var(--border-subtle)", transition: "background 0.2s ease" }}>
+                            <td style={{ padding: "0.85rem 0.75rem" }}>
+                              <div style={{ color: "#fff", fontWeight: 600 }}>#{b.blueScore || "DAG Tip"}</div>
+                              <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
+                                {b.timeAgo || new Date(b.timestamp).toLocaleString()}
+                              </div>
+                            </td>
+                            <td style={{ padding: "0.85rem 0.75rem" }}>
+                              <span
+                                title={b.hash}
+                                style={{
+                                  color: "var(--kaspa-cyan)",
+                                  background: "rgba(112, 199, 186, 0.08)",
+                                  padding: "0.2rem 0.5rem",
+                                  borderRadius: "4px",
+                                  border: "1px solid rgba(112, 199, 186, 0.2)",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {shortHash}
+                              </span>
+                            </td>
+                            <td style={{ padding: "0.85rem 0.75rem", color: "#fff" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                                <Cpu size={14} color="var(--text-muted)" /> {b.worker || "Solo Miner"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "0.85rem 0.75rem" }}>
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  fontWeight: 700,
+                                  color: effortColor,
+                                  padding: "0.2rem 0.55rem",
+                                  borderRadius: "4px",
+                                  border: `1px solid ${effortColor}40`,
+                                }}
+                              >
+                                {b.effort || 100}%
+                              </span>
+                            </td>
+                            <td style={{ padding: "0.85rem 0.75rem" }}>
+                              <span style={{ color: "var(--accent-gold)", fontWeight: 700 }}>+{b.reward.toFixed(2)} KAS</span>
+                              <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>≈ ${(b.reward * 0.174).toFixed(2)} USD</div>
+                            </td>
+                            <td style={{ padding: "0.85rem 0.75rem" }}>
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "0.35rem",
+                                  padding: "0.2rem 0.6rem",
+                                  borderRadius: "12px",
+                                  fontSize: "0.75rem",
+                                  background: "rgba(16, 185, 129, 0.15)",
+                                  color: "var(--status-success)",
+                                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                                }}
+                              >
+                                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--status-success)" }}></span>
+                                {b.status || "Blue Block"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "0.85rem 0.75rem", textAlign: "right" }}>
+                              <a
+                                href={`https://explorer.kaspa.org/blocks/${b.hash}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "0.35rem",
+                                  background: "transparent",
+                                  border: "1px solid var(--border-subtle)",
+                                  color: "var(--text-secondary)",
+                                  padding: "0.3rem 0.6rem",
+                                  borderRadius: "6px",
+                                  textDecoration: "none",
+                                  fontSize: "0.75rem",
+                                  transition: "all 0.2s ease",
+                                }}
+                              >
+                                Explorer <ExternalLink size={12} />
+                              </a>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1524,35 +1441,6 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-                {/* Sync Mode Simulation Switch (Allows user to preview both 1-2 day initial sync state and fully synced state) */}
-                <button
-                  onClick={() =>
-                    setNodeSync((prev) => ({
-                      ...prev,
-                      isSynced: !prev.isSynced,
-                      phase: !prev.isSynced ? "synced" : "headers",
-                      progressPercent: !prev.isSynced ? 100 : 88.6,
-                    }))
-                  }
-                  title="Click to toggle between Node Syncing and Fully Synced states"
-                  style={{
-                    background: "var(--bg-primary)",
-                    border: `1px solid ${nodeSync.isSynced ? "rgba(16, 185, 129, 0.4)" : "rgba(245, 158, 11, 0.4)"}`,
-                    borderRadius: "8px",
-                    padding: "0.45rem 0.8rem",
-                    color: nodeSync.isSynced ? "var(--status-success)" : "var(--accent-gold)",
-                    fontSize: "0.75rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                  }}
-                >
-                  <RefreshCw size={12} className={!nodeSync.isSynced ? "sync-pulse" : ""} />
-                  Preview State: <strong>{nodeSync.isSynced ? "Synced (100%)" : "Syncing (88.6%)"}</strong>
-                </button>
-
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</div>
                   <div style={{ fontSize: "1.4rem", fontWeight: 800, color: nodeSync.isSynced ? "var(--status-success)" : "var(--accent-gold)", lineHeight: 1.2 }}>
@@ -1560,7 +1448,6 @@ export const App: React.FC = () => {
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Network: mainnet</div>
                 </div>
-              </div>
             </div>
 
             {/* Quick Metrics Bar: Connections, Average Ping, Mempool */}
@@ -1570,8 +1457,8 @@ export const App: React.FC = () => {
                   <span>CONNECTIONS</span>
                   <Network size={18} color="var(--kaspa-cyan)" />
                 </div>
-                <div className="stat-value">9</div>
-                <div className="stat-subtext" style={{ color: "var(--text-muted)" }}>9 Out / 0 In</div>
+                <div className="stat-value">{peerCounts.total}</div>
+                <div className="stat-subtext" style={{ color: "var(--text-muted)" }}>{peerCounts.outbound} Out / {peerCounts.inbound} In</div>
               </div>
 
               <div className="glass-panel stat-card">
@@ -1579,8 +1466,14 @@ export const App: React.FC = () => {
                   <span>AVERAGE PING</span>
                   <Zap size={18} color="var(--accent-gold)" />
                 </div>
-                <div className="stat-value">349.8ms</div>
-                <div className="stat-subtext" style={{ color: "var(--text-muted)" }}>Across 9 sampled peers</div>
+                <div className="stat-value">
+                  {peers.length > 0
+                    ? `${(peers.reduce((acc, p) => acc + (p.ping || 0), 0) / peers.length).toFixed(1)}ms`
+                    : "0.0ms"}
+                </div>
+                <div className="stat-subtext" style={{ color: "var(--text-muted)" }}>
+                  {peers.length > 0 ? `Across ${peers.length} active peers` : "No peer telemetry"}
+                </div>
               </div>
 
               <div className="glass-panel stat-card">
@@ -1588,7 +1481,7 @@ export const App: React.FC = () => {
                   <span>MEMPOOL TXS</span>
                   <Radio size={18} color="var(--status-success)" />
                 </div>
-                <div className="stat-value">13</div>
+                <div className="stat-value">{stats.mempoolTxCount ?? 0}</div>
                 <div className="stat-subtext" style={{ color: "var(--text-muted)" }}>Local transaction pool</div>
               </div>
             </div>
@@ -1609,48 +1502,33 @@ export const App: React.FC = () => {
                   ) : (
                     <span className="sync-badge-amber">
                       <RefreshCw size={12} className="sync-pulse" />
-                      Syncing ({nodeSync.progressPercent}%)
+                      Syncing DAG ({nodeSync.progressPercent.toFixed(1)}%)
                     </span>
                   )}
                 </div>
 
-                {nodeSync.isSynced ? (
-                  <>
-                    <div style={{ fontSize: "2.4rem", fontWeight: 800, color: "#fff", marginBottom: "0.5rem" }}>
-                      Synced
-                    </div>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
-                      Node is fully synced with the Kaspa network tip. Validating blocks in real time.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                      <div style={{ fontSize: "2.4rem", fontWeight: 800, color: "var(--accent-gold)" }}>
-                        {nodeSync.progressPercent}%
-                      </div>
-                      <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>
-                        {nodeSync.estimatedRemaining}
-                      </span>
-                    </div>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-                      Catching up with Kaspa DAG headers and pruning point. First-time node sync can take 1–2 days.
-                    </p>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "2.5rem", fontWeight: 800, fontFamily: "var(--font-mono)", color: "#fff", lineHeight: 1 }}>
+                    {nodeSync.progressPercent.toFixed(1)}%
+                  </span>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                    {nodeSync.isSynced ? "Virtual Tip Synchronized" : nodeSync.estimatedRemaining}
+                  </span>
+                </div>
 
-                    {/* Shimmering Progress Bar */}
-                    <div className="sync-progress-bar-bg" style={{ marginBottom: "1.25rem", height: "10px" }}>
-                      <div className="sync-progress-bar-fill" style={{ width: `${nodeSync.progressPercent}%` }}></div>
-                    </div>
-                  </>
-                )}
+                {/* Progress Bar with glowing neon cap */}
+                <div className="sync-bar-container" style={{ marginBottom: "1.25rem" }}>
+                  <div
+                    className={`sync-bar-fill ${nodeSync.isSynced ? "synced" : "syncing"}`}
+                    style={{ width: `${Math.min(100, Math.max(0, nodeSync.progressPercent))}%` }}
+                  >
+                    {!nodeSync.isSynced && nodeSync.progressPercent > 0 && <div className="sync-glow-cap"></div>}
+                  </div>
+                </div>
 
-                {/* Tip & DAA Score Sub-Panel */}
+                {/* Live Tip / Target Info Grid */}
                 <div
                   style={{
-                    background: "var(--bg-primary)",
-                    borderRadius: "10px",
-                    padding: "1.25rem",
-                    border: "1px solid var(--border-subtle)",
                     display: "grid",
                     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                     gap: "1rem",
@@ -1668,7 +1546,7 @@ export const App: React.FC = () => {
                     <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.4rem" }}>
                       {nodeSync.isSynced
                         ? "No backlog detected. Ready for instantaneous block template generation."
-                        : `Phase: Downloading DAG headers (${(nodeSync.targetHeaderDaa - nodeSync.currentHeaderDaa).toLocaleString()} blocks remaining to tip).`}
+                        : `Phase: Downloading DAG headers (${(Math.max(0, nodeSync.targetHeaderDaa - nodeSync.currentHeaderDaa)).toLocaleString()} blocks remaining to tip).`}
                     </p>
                   </div>
 
@@ -1677,7 +1555,7 @@ export const App: React.FC = () => {
                       DAA SCORE
                     </span>
                     <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "#fff", fontFamily: "var(--font-mono)", marginTop: "0.25rem" }}>
-                      {nodeSync.isSynced ? "531.9M" : `${(nodeSync.currentHeaderDaa / 1_000_000).toFixed(1)}M`}
+                      {nodeSync.currentHeaderDaa > 0 ? `${(nodeSync.currentHeaderDaa / 1_000_000).toFixed(1)}M` : "0.0M"}
                     </div>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                       {nodeSync.isSynced ? "Virtual DAA metric reported by kaspad" : `Target DAA: ${(nodeSync.targetHeaderDaa / 1_000_000).toFixed(1)}M`}
@@ -1707,14 +1585,16 @@ export const App: React.FC = () => {
                         strokeWidth="3.2"
                       />
                       {/* Outbound Ring (Teal) */}
-                      <path
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="var(--kaspa-cyan)"
-                        strokeWidth="3.2"
-                        strokeDasharray="100, 100"
-                        strokeLinecap="round"
-                      />
+                      {peerCounts.total > 0 && (
+                        <path
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="var(--kaspa-cyan)"
+                          strokeWidth="3.2"
+                          strokeDasharray={`${(peerCounts.outbound / peerCounts.total) * 100}, 100`}
+                          strokeLinecap="round"
+                        />
+                      )}
                     </svg>
                     <div
                       style={{
@@ -1727,7 +1607,7 @@ export const App: React.FC = () => {
                       }}
                     >
                       <span style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "var(--font-mono)", color: "#fff", lineHeight: 1 }}>
-                        9
+                        {peerCounts.total}
                       </span>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>Peers</span>
                     </div>
@@ -1741,7 +1621,7 @@ export const App: React.FC = () => {
                       <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--kaspa-cyan)" }}></span>
                       Outbound
                     </span>
-                    <strong style={{ fontFamily: "var(--font-mono)", color: "#fff" }}>9</strong>
+                    <strong style={{ fontFamily: "var(--font-mono)", color: "#fff" }}>{peerCounts.outbound}</strong>
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", padding: "0.4rem 0", borderBottom: "1px solid var(--border-subtle)" }}>
@@ -1749,7 +1629,7 @@ export const App: React.FC = () => {
                       <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#a855f7" }}></span>
                       Inbound
                     </span>
-                    <strong style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>0</strong>
+                    <strong style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{peerCounts.inbound}</strong>
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", paddingTop: "0.6rem" }}>
@@ -1807,43 +1687,43 @@ export const App: React.FC = () => {
                       <th style={{ padding: "0.75rem" }}>VERSION</th>
                       <th style={{ padding: "0.75rem" }}>DIRECTION</th>
                       <th style={{ padding: "0.75rem" }}>PING</th>
-                      <th style={{ padding: "0.75rem", textAlign: "right" }}>CONNECTED</th>
+                      <th style={{ padding: "0.75rem", textAlign: "right" }}>STATUS</th>
                     </tr>
                   </thead>
                   <tbody style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}>
-                    {[
-                      { ip: "23.243.196.209:16111", version: "v2.0.1", direction: "OUT", ping: "181ms", pingColor: "#10b981", uptime: "4h 57m 44s" },
-                      { ip: "136.243.176.114:19188", version: "v2.0.1", direction: "OUT", ping: "401ms", pingColor: "#f59e0b", uptime: "4h 57m 16s" },
-                      { ip: "15.204.108.244:16111", version: "v2.0.1", direction: "OUT", ping: "436ms", pingColor: "#f59e0b", uptime: "4h 57m 32s" },
-                      { ip: "112.223.203.83:16111", version: "v2.0.1", direction: "OUT", ping: "305ms", pingColor: "#10b981", uptime: "4h 57m 51s" },
-                      { ip: "[::ffff:149.50.116.83]:20001", version: "v2.0.1", direction: "OUT", ping: "635ms", pingColor: "#ef4444", uptime: "4h 57m 47s" },
-                      { ip: "135.181.177.189:16111", version: "v2.0.1", direction: "OUT", ping: "361ms", pingColor: "#f59e0b", uptime: "4h 55m 47s" },
-                      { ip: "101.109.254.42:16111", version: "v2.0.1", direction: "OUT", ping: "271ms", pingColor: "#10b981", uptime: "4h 57m 51s" },
-                      { ip: "72.28.135.10:16111", version: "v2.0.1", direction: "OUT", ping: "269ms", pingColor: "#10b981", uptime: "4h 55m 46s" },
-                      { ip: "183.107.76.79:16111", version: "v2.0.1", direction: "OUT", ping: "289ms", pingColor: "#10b981", uptime: "4h 57m 36s" },
-                    ].map((peer, idx) => (
-                      <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                        <td style={{ padding: "0.85rem 0.75rem", color: "#fff" }}>
-                          <span style={{ color: "var(--text-primary)" }}>{peer.ip}</span>
-                        </td>
-                        <td style={{ padding: "0.85rem 0.75rem" }}>
-                          <span style={{ background: "var(--bg-primary)", padding: "0.15rem 0.4rem", borderRadius: "4px", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
-                            {peer.version}
-                          </span>
-                        </td>
-                        <td style={{ padding: "0.85rem 0.75rem" }}>
-                          <span style={{ background: "rgba(112, 199, 186, 0.12)", color: "var(--kaspa-cyan)", border: "1px solid rgba(112, 199, 186, 0.25)", padding: "0.15rem 0.45rem", borderRadius: "10px", fontSize: "0.75rem", fontWeight: 700 }}>
-                            {peer.direction}
-                          </span>
-                        </td>
-                        <td style={{ padding: "0.85rem 0.75rem" }}>
-                          <span style={{ color: peer.pingColor, fontWeight: 700 }}>{peer.ping}</span>
-                        </td>
-                        <td style={{ padding: "0.85rem 0.75rem", textAlign: "right", color: "var(--text-muted)" }}>
-                          {peer.uptime}
+                    {peers.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--text-muted)" }}>
+                          Discovering and connecting to Kaspa P2P swarm peers...
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      peers.map((peer, idx) => (
+                        <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                          <td style={{ padding: "0.85rem 0.75rem", color: "#fff" }}>
+                            <span style={{ color: "var(--text-primary)" }}>{peer.address}</span>
+                          </td>
+                          <td style={{ padding: "0.85rem 0.75rem" }}>
+                            <span style={{ background: "var(--bg-primary)", padding: "0.15rem 0.4rem", borderRadius: "4px", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
+                              {peer.version || "v0.14.0"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.85rem 0.75rem" }}>
+                            <span style={{ background: "rgba(112, 199, 186, 0.12)", color: "var(--kaspa-cyan)", border: "1px solid rgba(112, 199, 186, 0.25)", padding: "0.15rem 0.45rem", borderRadius: "10px", fontSize: "0.75rem", fontWeight: 700 }}>
+                              {peer.direction.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.85rem 0.75rem" }}>
+                            <span style={{ color: peer.ping < 250 ? "#10b981" : peer.ping < 500 ? "#f59e0b" : "#ef4444", fontWeight: 700 }}>
+                              {peer.ping}ms
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.85rem 0.75rem", textAlign: "right", color: "var(--status-success)" }}>
+                            Connected
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1864,14 +1744,14 @@ export const App: React.FC = () => {
                 color: "#10b981",
                 height: "300px",
                 overflowY: "auto",
+                lineHeight: 1.6,
               }}
             >
-              [KASPAD] Node initialized. Connected to 18 Kaspa P2P peers.<br />
-              [KASPAD] Virtual DAA Score: 81,420,950. Target BPS: 10.<br />
-              [STRATUM] Bridge listening on 0.0.0.0:5555.<br />
-              [STRATUM] Worker iceriver_ks7_01 connected from 192.168.1.45.<br />
-              [STRATUM] Set vardiff baseline target for worker: 8192.<br />
-              [STRATUM] Share submitted by iceriver_ks7_01: ACCEPTED.<br />
+              {logs.length === 0 ? (
+                <div style={{ color: "var(--text-muted)" }}>Listening for node and bridge console output...</div>
+              ) : (
+                logs.map((logLine, idx) => <div key={idx}>{logLine}</div>)
+              )}
             </div>
           </div>
         )}

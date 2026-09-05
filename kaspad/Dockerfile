@@ -13,4 +13,4 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["--utxoindex", "--appdir", "/app/data"]
+CMD ["--utxoindex", "--appdir", "/app/data", "--listen=0.0.0.0:16111", "--rpclisten=0.0.0.0:16110", "--rpclisten-json=0.0.0.0:18110"]

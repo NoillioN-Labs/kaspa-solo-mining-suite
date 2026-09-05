@@ -10,6 +10,13 @@ services:
       - "16111:16111"
     volumes:
       - "${APP_DATA_DIR:-.}/data:/app/data"
+    command: >
+      kaspad
+      --utxoindex
+      --appdir /app/data
+      --listen=0.0.0.0:16111
+      --rpclisten=0.0.0.0:16110
+      --rpclisten-json=0.0.0.0:18110
     healthcheck:
       test: ["CMD", "kaspactl", "get-info"]
       interval: 30s
