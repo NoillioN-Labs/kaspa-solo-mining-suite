@@ -1,0 +1,29 @@
+# generated: 2026-09-05T11:25:18Z
+# last_updated: 2026-09-05T11:25:18Z
+# project: Kaspa Solo Mining Suite
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+
+generated: 2026-09-05T11:25:18Z
+last_updated: 2026-09-05T11:25:18Z
+project: Kaspa Solo Mining Suite
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status: {}

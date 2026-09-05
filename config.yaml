@@ -1,0 +1,197 @@
+# Project-Level Centralized Configuration Management
+# ---------------------------------------------------
+# This file centralizes all ML Hyperparameters, System Constraints, 
+# Error Handling rules, and Pipeline Routing toggles. 
+# 
+# WARNING: Do NOT place sensitive credentials (API keys, DB passwords) in this file.
+# Sensitive secrets must remain strictly in the `.env` file.
+
+version: "1.0.0"
+
+# 1. ML Hyperparameters
+models:
+  primary:
+    name: "google/gemini-3.5-flash"
+    context_limit_tokens: 1000000
+    temperature: 0.2
+    max_output_tokens: 65536
+  fallback:
+    name: "google/gemini-3.1-pro" # Deliberately a DIFFERENT model than primary so failover is meaningful
+    context_limit_tokens: 1000000
+    temperature: 0.1
+    max_output_tokens: 8192
+
+# 2. System Constraints & Inference Boundaries
+system:
+  batch_sizes:
+    default_processing: 50
+    edge_case_processing: 5
+  timeouts:
+    standard_api_timeout_sec: 120.0
+    heavy_rationale_timeout_sec: 400.0
+  concurrency:
+    max_thread_pool_workers: 4 # Explicit quota ceiling to prevent 429 backoffs
+
+# 3. Error Handling & Retries
+resilience:
+  api_retries:
+    max_attempts: 3
+    base_backoff_sec: 5.0
+  db_retries:
+    max_attempts: 5 # Mitigates SQLite OperationalError: database is locked
+  handled_http_statuses:
+    - 503 # Service Unavailable (triggers exponential backoff instead of crash)
+    - 429 # Quota Exceeded
+
+# 4. Pipeline Routing & Toggles
+routing:
+  engine_mode: "cloud" # Options: "cloud" or "local"
+  skip_llm_extraction: false
+  force_full_reprocess: false
+  dry_run_mode: true # Requires user confirmation before batch execution
+
+# 5. Data & File Paths
+paths:
+  source_data_dir: "client_files/raw_data/"
+  output_db: ".data/database/kaspa_solo_mining_suite_production.sqlite"
+  logs_dir: "logs/"
+  log_archive_dir: "logs/archive/"
+  prompts_dir: "backend/ai_modules/"
+  test_artifacts_dir: ".data/test_artifacts/"
+
+# 5a. Log Archive Retention (scripts/utilities/prune_log_archive.py)
+logging:
+  archive_retention_days: 30
+
+
+# 5b. Testing & Coverage (AGENTS.md 5.7)
+# Branch-enabled coverage with a RATCHET, not a chased percentage. The gate
+# (scripts/utilities/coverage_gate.py) reports line/branch/diff coverage; new code
+# must be covered and total coverage may not fall below the tracked baseline.
+# `mode: advisory` reports without ever blocking; flip to `gating` per-project once
+# the baseline has settled. A fixed % target is a vanity metric -- the gate exists to
+# make 4.1's "the path was never exercised" mechanical, nothing more.
+testing:
+  coverage:
+    mode: "advisory" # "advisory" (report only) | "gating" (enforce, non-zero exit on failure)
+    branch: true # measure branch coverage, not just line coverage
+    source: # PYTHON packages pytest-cov measures. Frontend JS/TS is a separate toolchain
+      - "backend" # (vitest/Playwright V8 -> its own Cobertura xml); it is NOT covered by adding it here.
+    diff_base: "origin/master" # ref the diff/patch-coverage comparison is taken against
+    min_diff_coverage_pct: 90 # new/changed lines must meet this (enforced only when gating)
+    ratchet_tolerance_pct: 0.5 # total coverage may dip this much below baseline before failing
+    baseline_file: "docs/coverage_baseline.json" # git-tracked ratchet floor
+    coverage_xml: ".data/test_artifacts/coverage.xml" # primary (backend/pytest) Cobertura report; --run writes it
+    extra_coverage_xml: [] # additional Cobertura reports to aggregate into the ratchet, e.g.
+      # frontend vitest output. The gate reads Cobertura regardless of language, so a JS SPA's
+      # coverage feeds the same ratchet. The scaffold-frontend-testing skill wires this. Empty = backend only.
+  # temp_and_disk_discipline S4. The ceiling and the path belong in config, never in a
+  # script. A large temp root is a SMELL (usually an expensive fixture copying bulk data
+  # per-test), not a broken build -- so governance_lint warns, it does not fail.
+  # NOTE pytest clears an explicit --basetemp at session start, so this is a
+  # PEAK-PER-RUN measure, not accumulation across runs. That distinction decides the
+  # fix: stop generating the garbage, rather than schedule a cleaner.
+  temp_root: "" # e.g. "D:/tmp/<project>_pytest_tmp" -- mirror your pytest --basetemp. Empty = check skipped.
+  temp_root_max_gb: 2.0
+
+# Database backup retention (scripts/utilities/prune_db_backups.py).
+# Inert until the project HAS a database -- prune_db_backups.py says so and exits 0
+# when backup_dir is absent. Deliberately NOT an age cutoff like logging.* above:
+# logs are a COUNT problem and an old log is worthless, but a backup's value is
+# being a RESTORE POINT, which does not expire on a calendar. Grandfather-father-son
+# expresses the real question ("how far back can I restore?") and is bounded in
+# BYTES, where "keep the last 10" grows without limit as the database itself grows.
+# Manually-named snapshots in the same folder are NEVER touched -- they have no
+# convention to key on, which is why they accumulate; triage those by hand.
+# External mirror of git-ignored, non-regenerable data (scripts/utilities/backup_project_data.py).
+# A project on a plain local path has NO incidental cloud backup -- and nobody notices,
+# because git keeps working and git is what everyone checks. The data at risk is exactly
+# what git does not hold. Destination is never guessed (AGENTS 9: external = ask first),
+# and every category is OFF until explicitly enabled. One-way and additive: it never
+# deletes at the destination BECAUSE THE SOURCE LOST A FILE, since a mirror that
+# propagates deletions is a sync, and a sync replicates your mistake.
+# `--prune-destination` is not a relaxation of that: it applies the database_backups
+# grandfather-father-son policy below to the DESTINATION's own contents and never reads
+# the source. Without it an additive mirror of a daily 500MB snapshot grows ~15GB a
+# month, nothing ever fails, and the cheapest fix in the moment is to turn the whole
+# mechanism off -- a backup nobody can afford to keep running is not a backup.
+backup:
+  destination_path: "" # REQUIRED before the script will run. e.g. "D:/Backups/<project>"
+  categories: {} # extend/override the built-in client_files + data + database_backups globs
+  include: # every category off until named here
+    client_files: false
+    data: false
+    # Snapshot-only, and deliberately NOT the same thing as `data`: `.data/**/*`
+    # byte-copies the LIVE database mid-write and yields a torn file that LOOKS like a
+    # backup, while `.data/backups/**/*` holds only files written through the SQLite
+    # online backup API (backup_db.py), which are consistent by construction. Enable
+    # THIS one, never `data`, when the project has a database worth mirroring
+    # off-machine. Retention for it reads the `database_backups:` block below -- same
+    # counts, same filename_prefix, so the destination policy cannot drift from the
+    # local one.
+    database_backups: false
+
+# Prompt capability-lie check (scripts/utilities/capability_lie_check.py). Advisory,
+# deliberately NOT in governance_lint's CHECKS: fuzzy keyword matching that fires on
+# every push trains people to ignore it. Run it at a retro or a prompt review.
+capability_registry:
+  path: "" # JSON list of capability entries. Empty = check skips, loudly.
+  resolved_states: ["BUILT", "COMPOSABLE"] # states meaning "no longer absent"
+  state_field: "gap_class"
+  id_field: "gap_id"
+  text_fields: ["title", "target"]
+  # Defaults to the AGENTS 5.4 prompt layout, so a constitution-following project needs
+  # no configuration here at all.
+  prompt_globs: ["backend/ai_modules/*/*__prompt__*.md"]
+
+database_backups:
+  db_path: "" # e.g. ".data/app.db" -- what backup_db.py snapshots. Empty = no database yet.
+  backup_dir: ".data/backups" # relative to repo root, or absolute
+  # ONE prefix, read by BOTH the producer (backup_db.py) and the pruner
+  # (prune_db_backups.py). Split them and the pruner silently matches nothing:
+  # it reports "no candidates", looks healthy, and the directory grows forever.
+  filename_prefix: "backup" # matches <prefix>_<YYYYMMDD>_<HHMMSS>.db
+  daily_count: 7 # keep 1/day for the most recent 7 days that HAVE a backup; clamped to [1, 90]
+  weekly_count: 4 # then 1/week for the following 4 distinct ISO weeks; clamped to [1, 90]
+
+# 6. Knowledge Base (AGENTS.md 5.8 + 7)
+# Memory lives IN THE REPO (docs/memory/) and is git-tracked. The vendor's memory
+# path is a thin directory junction into it, created by bootstrap_project.ps1 --
+# the Adapter Rule (2), exactly as the skills registry is wired. Delete the
+# junction and nothing is lost; the knowledge is in git.
+# Paths are repo-relative wherever possible, so no machine-specific string leaks
+# into config. Keys deliberately avoid the `paths.*_dir` naming so governance_lint
+# does not try to resolve them as data directories.
+knowledge:
+  memory_store: "docs/memory"
+  skills_registry: "../_NEON_skills/skills"
+  # A memory page is a CACHE entry, not an archive: past this it is almost
+  # certainly carrying durable knowledge that belongs in an ADR.
+  memory_max_page_bytes: 800
+  # The single living architecture map (5.8). One per project — never a second.
+  architecture_map: "_bmad-output/planning-artifacts/ARCHITECTURE.md"
+  # The map must carry `last_reviewed: YYYY-MM-DD`; lint ages it out past this.
+  architecture_max_age_days: 90
+
+# 7. Fleet Topology (AGENTS.md 6 + 9 -- dissemination is user-approved and fleet-wide)
+# apply_upgrade.py discovers fleet projects POSITIONALLY -- immediate sibling folders
+# of the project root that carry AGENTS.md + docs/upgrades/. That means relocating the
+# template silently changes which fleet it can see, and a half-migrated fleet is a SPLIT
+# fleet: `disseminate` reaches only the half it can see, and `prune` reads
+# "absorbed by all N" against a denominator that is simply wrong.
+# This floor is the guard. If discovery finds fewer projects than this, `disseminate`
+# and `prune` refuse and say why, instead of succeeding against half the fleet.
+# Master-template only (both commands already refuse to run anywhere else).
+# Raise it when a project joins the fleet; lower it when one is genuinely retired.
+fleet:
+  expected_min_projects: 5
+
+# Governance (AGENTS 4 step 6). Stories completed BEFORE the review-artifact rule's
+# adoption (2026-08-29) are grandfathered here - a MAPPING of story id to reason,
+# never a bare list (the _KNOWN_ID_GAPS convention: an unreviewed exclusion absorbs
+# whatever grows into it).
+governance:
+  review_artifact_exempt:
+    "1-1": "done 2026-06 - predates the review-artifact rule (adopted 2026-08-29)"
+    "1-2": "done 2026-06 - its review IS the epic artifact (template_code_review_findings)"
+    "1-3": "done 2026-06 - predates the review-artifact rule (adopted 2026-08-29)"

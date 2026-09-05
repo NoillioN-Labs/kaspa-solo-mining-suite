@@ -1,0 +1,38 @@
+# Governance quality gate: ruff + governance lint on every push/PR.
+# Deliberately dependency-light: linting must never require building the
+# project's application dependencies (native media/build deps break runners).
+name: agent-lint-check
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+# Cancel superseded runs (github_actions_cost_controls pack, Change A). Push twice
+# inside ten minutes and the first run otherwise spends its full duration reporting
+# on code that has already been replaced. The workflow name is IN the group key, or
+# two different workflows would cancel each other.
+#
+# Deliberately NO paths-ignore here: this is the CHEAP gate (ubuntu, ~12s) and the
+# pack is explicit that it must run on everything, docs included. paths-ignore
+# belongs only on an expensive workflow, which this repo does not have.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Ruff check
+        run: uvx ruff@0.15.21 check .
+
+      - name: Governance lint
+        run: uv run --no-project --with pyyaml python scripts/utilities/governance_lint.py

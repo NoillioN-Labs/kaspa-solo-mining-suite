@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "10_example_agent output",
+  "description": "Classification result for one ingested document (example schema - replace per project).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "confidence", "document_date", "rationale"],
+  "properties": {
+    "category": {
+      "type": "string",
+      "enum": ["invoice", "contract", "correspondence", "report", "unclassified"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "document_date": {
+      "type": ["string", "null"],
+      "description": "ISO 8601 date (YYYY-MM-DD) if present in the document, else null."
+    },
+    "rationale": {
+      "type": "string",
+      "maxLength": 200
+    }
+  }
+}
