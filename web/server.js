@@ -138,10 +138,20 @@ app.get('/api/connection', (req, res) => {
 
 // 2. Comprehensive Stats Endpoint
 app.get('/api/stats', (req, res) => {
-  const { live } = collector.state;
+  const { live, minedBlocks } = collector.state;
+  const dayAgo = Date.now() - 86400000;
+  const blocks24h = minedBlocks.filter(b => (b.timestamp || 0) >= dayAgo).length;
+  const workers = live.workers || [];
+  const roundEffort = workers.length > 0
+    ? Number((workers.reduce((acc, w) => acc + (w.effort || 0), 0) / workers.length).toFixed(1))
+    : 0;
+
   res.json({
     totalHashrate: live.totalHashrate > 0 ? `${live.totalHashrate.toFixed(1)} TH/s` : "0.0 TH/s",
+    totalHashrateTh: live.totalHashrate || 0,
     activeMiners: live.activeMiners,
+    blocks24h,
+    roundEffort,
     acceptedShares: live.acceptedShares,
     staleShares: live.staleShares,
     invalidShares: live.invalidShares,

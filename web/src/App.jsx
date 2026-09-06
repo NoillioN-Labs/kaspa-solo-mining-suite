@@ -721,8 +721,323 @@ export function AsicConnectionCard({ connection }) {
   );
 }
 
+export function formatHashrate(thVal) {
+  const num = Number(thVal) || 0;
+  if (num >= 1000) return `${(num / 1000).toFixed(2)} PH/s`;
+  if (num >= 1) return `${num.toFixed(2)} TH/s`;
+  if (num > 0) return `${(num * 1000).toFixed(1)} GH/s`;
+  return '0.0 GH/s';
+}
+
+export function MetricCardsGrid({ stats, bridge }) {
+  const hashrateTh = stats?.totalHashrateTh || bridge?.totalHashrate || 0;
+  const activeMiners = stats?.activeMiners ?? bridge?.clients ?? 0;
+  const blocks24h = stats?.blocks24h ?? 0;
+  const effort = stats?.roundEffort ?? 0;
+  const isLucky = effort < 100;
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '16px',
+      marginTop: '16px',
+      marginBottom: '24px'
+    }}>
+      {/* 1. Fleet Hashrate */}
+      <div className="card" style={{ padding: '18px' }}>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
+          Fleet Hashrate
+        </div>
+        <div style={{
+          fontSize: '1.75rem',
+          fontWeight: 700,
+          fontFamily: "'Fira Code', var(--font-mono), monospace",
+          color: 'var(--kaspa-teal)',
+          marginTop: '6px'
+        }}>
+          {formatHashrate(hashrateTh)}
+        </div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '4px' }}>
+          Accepted: {stats?.acceptedShares ?? bridge?.acceptedShares ?? 0}
+        </div>
+      </div>
+
+      {/* 2. Active Miners */}
+      <div className="card" style={{ padding: '18px' }}>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
+          Active Miners
+        </div>
+        <div style={{
+          fontSize: '1.75rem',
+          fontWeight: 700,
+          fontFamily: "'Fira Code', var(--font-mono), monospace",
+          color: 'var(--text-primary)',
+          marginTop: '6px'
+        }}>
+          {activeMiners}
+        </div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '4px' }}>
+          Port: 55555 stratum
+        </div>
+      </div>
+
+      {/* 3. Blocks 24H */}
+      <div className="card" style={{ padding: '18px' }}>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
+          Blocks (24H)
+        </div>
+        <div style={{
+          fontSize: '1.75rem',
+          fontWeight: 700,
+          fontFamily: "'Fira Code', var(--font-mono), monospace",
+          color: '#34D399',
+          marginTop: '6px'
+        }}>
+          {blocks24h}
+        </div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '4px' }}>
+          Solo Solved Blocks
+        </div>
+      </div>
+
+      {/* 4. Round Effort */}
+      <div className="card" style={{ padding: '18px' }}>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
+          Round Effort
+        </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: '8px',
+          marginTop: '6px'
+        }}>
+          <span style={{
+            fontSize: '1.75rem',
+            fontWeight: 700,
+            fontFamily: 'var(--font-mono)',
+            color: isLucky ? '#10B981' : '#F59E0B'
+          }}>
+            {effort}%
+          </span>
+          <span style={{
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            padding: '2px 8px',
+            borderRadius: '10px',
+            backgroundColor: isLucky ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+            color: isLucky ? '#10B981' : '#F59E0B'
+          }}>
+            {isLucky ? 'Lucky' : 'Normal'}
+          </span>
+        </div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '4px' }}>
+          Target ~100% avg
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function HashrateTrendChart() {
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/history?range=24h')
+      .then(res => res.json())
+      .then(data => setHistory(data.data || []))
+      .catch(() => {});
+  }, []);
+
+  const points = history.length > 0 ? history : [
+    { timeLabel: '00:00', hashrate: 0 },
+    { timeLabel: '12:00', hashrate: 0 },
+    { timeLabel: '24:00', hashrate: 0 }
+  ];
+
+  const maxHash = Math.max(1, ...points.map(p => p.hashrate || 0));
+  const svgWidth = 500;
+  const svgHeight = 120;
+  const padding = 20;
+
+  const coords = points.map((p, i) => {
+    const x = padding + (i / Math.max(1, points.length - 1)) * (svgWidth - padding * 2);
+    const y = svgHeight - padding - ((p.hashrate || 0) / maxHash) * (svgHeight - padding * 2);
+    return { x, y, label: p.timeLabel };
+  });
+
+  const pathD = coords.reduce((acc, c, i) => (
+    i === 0 ? `M ${c.x},${c.y}` : `${acc} L ${c.x},${c.y}`
+  ), '');
+
+  const areaD = `${pathD} L ${coords[coords.length - 1].x},${svgHeight - padding} L ${coords[0].x},${svgHeight - padding} Z`;
+
+  return (
+    <div className="card" style={{ marginTop: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h3 className="card-title" style={{ marginBottom: 0 }}>24-Hour Hashrate Trend</h3>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          Peak: {maxHash.toFixed(2)} TH/s
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ width: '100%', height: '140px', overflow: 'visible' }}>
+        <defs>
+          <linearGradient id="hashrate-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#70C7BA" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#70C7BA" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <line x1={padding} y1={padding} x2={svgWidth - padding} y2={padding} stroke="var(--bg-surface-hover)" strokeDasharray="3 3" />
+        <line x1={padding} y1={svgHeight / 2} x2={svgWidth - padding} y2={svgHeight / 2} stroke="var(--bg-surface-hover)" strokeDasharray="3 3" />
+        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="var(--bg-surface-hover)" />
+        <path d={areaD} fill="url(#hashrate-grad)" />
+        <path d={pathD} fill="none" stroke="#70C7BA" strokeWidth="2.5" />
+        <text x={padding} y={svgHeight - 4} fill="var(--text-secondary)" fontSize="10">24h ago</text>
+        <text x={svgWidth - padding} y={svgHeight - 4} textAnchor="end" fill="var(--text-secondary)" fontSize="10">Now</text>
+      </svg>
+    </div>
+  );
+}
+
+export function GhostdagCanvas() {
+  const canvasRef = React.useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animId;
+    let lastBlockTime = performance.now();
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = (rect.width || 600) * dpr;
+    canvas.height = 140 * dpr;
+    ctx.scale(dpr, dpr);
+
+    const width = rect.width || 600;
+    const height = 140;
+
+    let blocks = [];
+    let idCounter = 0;
+
+    const spawnBlock = (now) => {
+      idCounter++;
+      const isBlue = Math.random() > 0.15;
+      const yPos = isBlue ? height / 2 + (Math.random() * 20 - 10) : (Math.random() > 0.5 ? 30 : height - 30);
+      
+      const newBlock = {
+        id: idCounter,
+        x: width + 20,
+        y: yPos,
+        radius: isBlue ? 7 : 5,
+        isBlue,
+        parents: blocks.filter(b => b.x > width - 180).slice(-2),
+      };
+      blocks.push(newBlock);
+    };
+
+    for (let i = 0; i < 15; i++) {
+      idCounter++;
+      const isBlue = Math.random() > 0.15;
+      const yPos = isBlue ? height / 2 + (Math.random() * 20 - 10) : (Math.random() > 0.5 ? 30 : height - 30);
+      blocks.push({
+        id: idCounter,
+        x: (width / 15) * i,
+        y: yPos,
+        radius: isBlue ? 7 : 5,
+        isBlue,
+        parents: [],
+      });
+    }
+
+    const render = (now) => {
+      if (now - lastBlockTime >= 100) {
+        spawnBlock(now);
+        lastBlockTime = now;
+      }
+
+      ctx.clearRect(0, 0, width, height);
+
+      for (const b of blocks) {
+        b.x -= 2.2;
+      }
+      blocks = blocks.filter(b => b.x >= -30);
+
+      for (const b of blocks) {
+        for (const p of b.parents) {
+          ctx.beginPath();
+          ctx.moveTo(b.x, b.y);
+          ctx.lineTo(p.x, p.y);
+          ctx.strokeStyle = b.isBlue && p.isBlue ? 'rgba(112, 199, 186, 0.35)' : 'rgba(239, 68, 68, 0.25)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+
+      for (const b of blocks) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fillStyle = b.isBlue ? '#70C7BA' : '#EF4444';
+        ctx.shadowColor = b.isBlue ? 'rgba(112, 199, 186, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      animId = requestAnimationFrame(render);
+    };
+
+    animId = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, []);
+
+  return (
+    <div className="card" style={{ marginTop: '24px', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h3 className="card-title" style={{ marginBottom: 0 }}>GHOSTDAG 10 BPS Consensus Stream</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            display: 'inline-block',
+            width: '8px', height: '8px',
+            borderRadius: '50%', backgroundColor: '#70C7BA',
+            boxShadow: '0 0 8px #70C7BA'
+          }} />
+          <span style={{ fontSize: '0.8rem', color: 'var(--kaspa-teal)', fontWeight: 600 }}>
+            10 BPS Live
+          </span>
+        </div>
+      </div>
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: '100%',
+          height: '140px',
+          backgroundColor: '#0A0A0C',
+          borderRadius: 'var(--radius-sm)',
+          display: 'block',
+        }}
+      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#70C7BA', display: 'inline-block' }} />
+          Selected Chain (Blue Blocks)
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444', display: 'inline-block' }} />
+          Parallel Merged (Red Blocks)
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [status, setStatus] = useState(null);
+  const [stats, setStats] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [showCelebration, setShowCelebration] = useState(false);
   
@@ -760,6 +1075,22 @@ function App() {
     
     fetchStatus();
     const int = setInterval(fetchStatus, 5000);
+    return () => clearInterval(int);
+  }, []);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        setStats(data);
+      } catch (err) {
+        console.error("Failed to fetch stats", err);
+      }
+    };
+
+    fetchStats();
+    const int = setInterval(fetchStats, 5000);
     return () => clearInterval(int);
   }, []);
 
@@ -834,8 +1165,17 @@ function App() {
 
         {/* Story 1.2: Multi-Stage Initial Block Download (IBD) Banner */}
         <SyncBanner sync={status?.node} />
+
+        {/* Story 2.2: Primary Metric Cards Grid */}
+        <MetricCardsGrid stats={stats} bridge={status?.bridge} />
+
+        {/* Story 2.2: Live 10 BPS GHOSTDAG Canvas Visualizer */}
+        <GhostdagCanvas />
+
+        {/* Story 2.2: 24-Hour Hashrate Trend Chart */}
+        <HashrateTrendChart />
         
-        <div className="card">
+        <div className="card" style={{ marginTop: '24px' }}>
           <h2 className="card-title">
             <GlowingDot color={dotColor} />
             System Status
