@@ -1,4 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
+
+export class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Kaspa Solo Mining UI Error Caught by Boundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          padding: '20px',
+          margin: '16px 0',
+          backgroundColor: '#1C1917',
+          border: '1px solid #EF4444',
+          borderRadius: '8px',
+          color: '#F87171'
+        }}>
+          <h4 style={{ margin: '0 0 8px 0', color: '#EF4444' }}>Widget Warning</h4>
+          <p style={{ margin: '0 0 10px 0', color: '#E5E7EB', fontSize: '0.85rem' }}>
+            {this.state.error?.message || 'A widget encountered an issue loading.'}
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#70C7BA',
+              color: '#000',
+              border: 'none',
+              borderRadius: '4px',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function GlowingDot({ color }) {
   const shadowColor = color === 'red' ? 'rgba(239,68,68,0.5)' : color === 'yellow' ? 'rgba(245,158,11,0.5)' : 'rgba(112,199,186,0.5)';
@@ -1144,21 +1195,26 @@ function ProfitabilityWidget() {
 
   if (!fiat) return null;
 
+  const price = typeof fiat.price === 'number' ? fiat.price : 0.174;
+  const currency = fiat.currency || 'USD';
+  const dailyKas = typeof fiat.dailyKas === 'number' ? fiat.dailyKas : 0;
+  const dailyFiat = typeof fiat.dailyFiat === 'number' ? fiat.dailyFiat : (dailyKas * price);
+
   return (
-    <div className="card" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between' }}>
+    <div className="card" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
       <div>
         <h3 className="card-title">Estimated Daily Profit</h3>
         <div style={{ fontSize: '2rem', color: 'var(--kaspa-teal)' }}>
-          ${fiat.dailyFiat.toFixed(2)} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>{fiat.currency}</span>
+          ${dailyFiat.toFixed(2)} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>{currency}</span>
         </div>
         <div style={{ color: 'var(--text-secondary)' }}>
-          ~{fiat.dailyKas.toFixed(2)} KAS / day
+          ~{dailyKas.toFixed(2)} KAS / day
         </div>
       </div>
       <div style={{ textAlign: 'right' }}>
         <h3 className="card-title">KAS Price</h3>
         <div style={{ fontSize: '1.5rem' }}>
-          ${fiat.price.toFixed(3)}
+          ${price.toFixed(3)}
         </div>
       </div>
     </div>
@@ -2337,14 +2393,22 @@ function App() {
         
         <HealthMonitor setAlerts={setAlerts} />
         
-        <ProfitabilityWidget />
-        <MinedBlocksLedger />
+        <ErrorBoundary>
+          <ProfitabilityWidget />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <MinedBlocksLedger />
+        </ErrorBoundary>
         
         {/* Story 4.1: Kaspa Node P2P Swarm & Network Diagnostics */}
-        <NodeSwarmView />
+        <ErrorBoundary>
+          <NodeSwarmView />
+        </ErrorBoundary>
         
         {/* Story 4.1: Live Streaming Log Viewer with Hover-to-Pause */}
-        <LogViewer />
+        <ErrorBoundary>
+          <LogViewer />
+        </ErrorBoundary>
       </main>
     </div>
   );

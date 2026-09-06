@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { collector } from './collector.js';
 export { collector };
@@ -353,9 +354,15 @@ app.get('/api/health', (req, res) => {
 
 // Fiat rates
 app.get('/api/fiat', (req, res) => {
+  const hashrateTh = collector.state?.live?.totalHashrate || 0;
+  const dailyKas = hashrateTh > 0 ? Number((hashrateTh * 15.2).toFixed(2)) : 0;
+  const price = 0.174;
+  const dailyFiat = Number((dailyKas * price).toFixed(2));
   res.json({
-    price: 0.174,
+    price,
     currency: "USD",
+    dailyKas,
+    dailyFiat,
   });
 });
 
@@ -373,7 +380,10 @@ app.post('/api/settings', (req, res) => {
 });
 
 // Serve compiled static production frontend
-const publicPath = path.join(__dirname, 'public');
+const distPath = path.join(__dirname, 'dist');
+const publicPath = fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'))
+  ? distPath
+  : path.join(__dirname, 'public');
 app.use(express.static(publicPath));
 
 // SPA fallback for all non-API GET routes (Express 5 compatible)

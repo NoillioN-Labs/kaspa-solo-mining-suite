@@ -2,7 +2,7 @@ manifestVersion: 1.1
 id: kaspa-solo-mining
 category: kaspa
 name: Kaspa Solo Mining Suite
-version: "2.1.1"
+version: "2.1.2"
 tagline: All-in-one solo mining stack with bundled Rusty Kaspad node and ASIC manager
 icon: https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-suite/main/kaspa-solo-mining/icon.svg
 description: >-
@@ -19,8 +19,10 @@ gallery:
   - https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-suite/main/kaspa-solo-mining/1.png
   - https://raw.githubusercontent.com/NoillioN-Labs/kaspa-solo-mining-suite/main/kaspa-solo-mining/2.png
 releaseNotes: >-
-  v2.1.1:
-  - Fix: Fixed node crash on IPv6 networks caused by upstream kaspad externalip syntax parsing.
+  v2.1.2:
+  - Fix: Fixed React blank/black screen crash caused by undefined property access in ProfitabilityWidget.
+  - Added ErrorBoundary components across all dashboard widgets for crash resilience.
+  - Fixed node startup crash on IPv6 networks caused by upstream kaspad externalip syntax parsing.
   - 10 BPS GHOSTDAG live block animation canvas rendering real-time network tip blocks.
   - Autonomous 24/7 telemetry collector daemon with zero-loss background polling.
   - Multi-stage IBD tracking (Headers, Block DAG, UTXO Indexing) with dual connection endpoints (LAN IPv4 + umbrel.local).
