@@ -48,8 +48,8 @@ app.use(express.json());
 // Start autonomous background telemetry collector (AD-1)
 collector.start();
 
-// Hardware tuning presets catalog
-const PRESET_CATALOG = [
+// Hardware tuning presets catalog (FR-9, UX-DR9)
+export const PRESET_CATALOG = [
   {
     id: "automatic",
     name: "Automatic Universal (Auto-Vardiff)",
@@ -94,6 +94,19 @@ const PRESET_CATALOG = [
 ];
 
 let activePreset = "automatic";
+
+export function getActivePreset() {
+  return activePreset;
+}
+
+export function setActivePreset(preset) {
+  const match = PRESET_CATALOG.find(p => p.id === preset);
+  if (match) {
+    activePreset = preset;
+    return true;
+  }
+  return false;
+}
 
 // 1. Live Aggregated Status
 app.get('/api/status', (req, res) => {
@@ -209,7 +222,19 @@ app.post('/api/tuning', (req, res) => {
   if (match) {
     activePreset = preset;
     console.log(`[TUNING] Preset updated to: ${preset} (${match.name})`);
-    res.json({ success: true, activePreset });
+    res.json({ success: true, activePreset, presetDetails: match });
+  } else {
+    res.status(400).json({ error: 'Invalid preset ID' });
+  }
+});
+
+app.post('/api/presets/select', (req, res) => {
+  const { preset } = req.body;
+  const match = PRESET_CATALOG.find(p => p.id === preset);
+  if (match) {
+    activePreset = preset;
+    console.log(`[PRESETS] Active preset set to: ${preset} (${match.name})`);
+    res.json({ success: true, activePreset, presetDetails: match });
   } else {
     res.status(400).json({ error: 'Invalid preset ID' });
   }

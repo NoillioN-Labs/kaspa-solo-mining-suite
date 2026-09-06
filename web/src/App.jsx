@@ -43,85 +43,221 @@ function CircularProgress({ progress }) {
   );
 }
 
-function PresetSelector() {
+export function PresetSelector() {
+  const [catalog, setCatalog] = useState([]);
+  const [activePreset, setActivePresetState] = useState('automatic');
+  const [pendingPreset, setPendingPreset] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState('');
-  
-  const handleSelect = (e) => {
-    setSelectedPreset(e.target.value);
-    if (e.target.value) {
-      setShowModal(true);
-    }
+  const [notice, setNotice] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/presets')
+      .then(res => res.json())
+      .then(data => {
+        if (data.catalog) setCatalog(data.catalog);
+        if (data.activePreset) setActivePresetState(data.activePreset);
+      })
+      .catch(console.error);
+  }, []);
+
+  const activeItem = catalog.find(p => p.id === activePreset) || {
+    id: 'automatic',
+    name: 'Automatic Universal (Auto-Vardiff)',
+    difficultyTier: 'Adaptive',
+    hashrateNominal: 'Dynamic',
+    description: 'Continuously adjusts difficulty to target 15-20 shares/min across all miner scales.',
+  };
+
+  const handleSelectPreset = (preset) => {
+    if (preset.id === activePreset) return;
+    setPendingPreset(preset);
+    setShowModal(true);
   };
 
   const confirmTuning = async () => {
+    if (!pendingPreset) return;
     try {
-      const res = await fetch('/api/tuning', {
+      const res = await fetch('/api/presets/select', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preset: selectedPreset })
+        body: JSON.stringify({ preset: pendingPreset.id })
       });
+      const data = await res.json();
       if (res.ok) {
-        alert(`Tuning applied: ${selectedPreset}`);
+        setActivePresetState(pendingPreset.id);
+        setNotice(`Hardware preset activated: ${pendingPreset.name}`);
+        setTimeout(() => setNotice(null), 4000);
       }
     } catch (e) {
       console.error(e);
     }
     setShowModal(false);
-    setSelectedPreset('');
+    setPendingPreset(null);
   };
 
   return (
     <div style={{ marginTop: '24px' }}>
-      <h3 className="card-title">ASIC Tuning Preset</h3>
-      <select 
-        value={selectedPreset} 
-        onChange={handleSelect}
-        style={{
-          padding: '8px 12px',
-          borderRadius: 'var(--radius-sm)',
-          backgroundColor: 'var(--bg-base)',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--bg-surface-hover)',
-          width: '100%',
-          fontFamily: 'var(--font-sans)'
-        }}
-      >
-        <option value="">Select a preset...</option>
-        <option value="KS0">IceRiver KS0</option>
-        <option value="KS1">IceRiver KS1</option>
-        <option value="Antminer">Antminer KS3</option>
-      </select>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <h3 className="card-title" style={{ marginBottom: 0 }}>Hardware Tuning & Vardiff Presets</h3>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '4px 12px',
+          borderRadius: '16px',
+          backgroundColor: 'rgba(112, 199, 186, 0.15)',
+          border: '1px solid rgba(112, 199, 186, 0.35)',
+          color: 'var(--kaspa-teal)',
+          fontSize: '0.8rem',
+          fontWeight: 600,
+        }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--kaspa-teal)' }} />
+          Active: {activeItem.name}
+        </div>
+      </div>
 
-      {showModal && (
+      {notice && (
+        <div style={{
+          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+          border: '1px solid #10B981',
+          color: '#A7F3D0',
+          padding: '10px 14px',
+          borderRadius: 'var(--radius-sm)',
+          marginBottom: '16px',
+          fontSize: '0.85rem'
+        }}>
+          ✓ {notice}
+        </div>
+      )}
+
+      {/* Preset Cards Grid (UX-DR9) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gap: '14px',
+        marginTop: '12px'
+      }}>
+        {catalog.map(preset => {
+          const isActive = preset.id === activePreset;
+          return (
+            <div
+              key={preset.id}
+              style={{
+                backgroundColor: isActive ? 'rgba(112, 199, 186, 0.08)' : '#0A0A0C',
+                border: `1px solid ${isActive ? 'var(--kaspa-teal)' : 'var(--bg-surface-hover)'}`,
+                borderRadius: 'var(--radius-sm)',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    color: isActive ? 'var(--kaspa-teal)' : 'var(--text-secondary)'
+                  }}>
+                    {preset.difficultyTier}
+                  </span>
+                  {isActive && (
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      backgroundColor: 'var(--kaspa-teal)',
+                      color: '#000',
+                      padding: '2px 8px',
+                      borderRadius: '10px'
+                    }}>
+                      ACTIVE
+                    </span>
+                  )}
+                </div>
+                <h4 style={{ color: 'var(--text-primary)', fontSize: '0.95rem', marginBottom: '6px' }}>
+                  {preset.name}
+                </h4>
+                <div style={{ fontSize: '0.8rem', color: 'var(--kaspa-teal)', fontFamily: "'Fira Code', monospace", marginBottom: '8px' }}>
+                  Nominal: {preset.hashrateNominal}
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.4', marginBottom: '14px' }}>
+                  {preset.description}
+                </p>
+              </div>
+
+              <button
+                onClick={() => handleSelectPreset(preset)}
+                disabled={isActive}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: isActive ? 'transparent' : 'var(--bg-surface)',
+                  color: isActive ? 'var(--kaspa-teal)' : 'var(--text-primary)',
+                  border: `1px solid ${isActive ? 'var(--kaspa-teal)' : 'var(--bg-surface-hover)'}`,
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: isActive ? 'default' : 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {isActive ? 'Current Preset' : 'Activate Preset'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Confirmation Modal (UX-DR9) */}
+      {showModal && pendingPreset && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex',
-          alignItems: 'center', justifyContent: 'center', zIndex: 100
+          backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          padding: '20px'
         }}>
-          <div className="card" style={{ maxWidth: '400px', width: '100%' }}>
-            <h3 style={{ color: '#EF4444', marginBottom: '16px' }}>Warning: Mining Interruption</h3>
-            <p style={{ marginBottom: '24px', color: 'var(--text-secondary)' }}>
-              Applying the <strong>{selectedPreset}</strong> preset will restart the Stratum Bridge. 
-              Your ASIC will temporarily disconnect and reconnect. Do you wish to proceed?
+          <div className="card" style={{ maxWidth: '460px', width: '100%', border: '1px solid var(--kaspa-teal)' }}>
+            <h3 style={{ color: 'var(--kaspa-teal)', marginBottom: '12px', fontSize: '1.1rem' }}>
+              Confirm Hardware Tuning Change
+            </h3>
+            <p style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+              Activate preset <strong>{pendingPreset.name}</strong> ({pendingPreset.difficultyTier})?
             </p>
+            <div style={{
+              backgroundColor: '#0A0A0C',
+              padding: '12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.85rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '20px',
+              lineHeight: '1.4'
+            }}>
+              ℹ️ Stratum Bridge vardiff will update in real time without restarting Rusty Kaspad or dropping valid worker shares.
+            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button 
-                onClick={() => { setShowModal(false); setSelectedPreset(''); }}
+                onClick={() => { setShowModal(false); setPendingPreset(null); }}
                 style={{
                   padding: '8px 16px', borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'transparent', color: 'var(--text-primary)',
-                  border: '1px solid var(--bg-surface-hover)', cursor: 'pointer'
+                  backgroundColor: 'transparent', color: 'var(--text-secondary)',
+                  border: '1px solid var(--bg-surface-hover)', cursor: 'pointer',
+                  fontWeight: 500
                 }}
-              >Cancel</button>
+              >
+                Cancel
+              </button>
               <button 
                 onClick={confirmTuning}
                 style={{
-                  padding: '8px 16px', borderRadius: 'var(--radius-sm)',
+                  padding: '8px 18px', borderRadius: 'var(--radius-sm)',
                   backgroundColor: 'var(--kaspa-teal)', color: '#000',
-                  border: 'none', fontWeight: 'bold', cursor: 'pointer'
+                  border: 'none', fontWeight: 700, cursor: 'pointer'
                 }}
-              >Apply Tuning</button>
+              >
+                Apply Tuning
+              </button>
             </div>
           </div>
         </div>
