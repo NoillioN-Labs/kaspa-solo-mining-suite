@@ -375,6 +375,213 @@ function BlockCelebration({ onComplete }) {
   );
 }
 
+export function formatEta(seconds) {
+  if (seconds === null || seconds === undefined || seconds <= 0) return 'Calculating...';
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hrs > 0) return `~${hrs}h ${mins}m`;
+  if (mins > 0) return `~${mins}m ${secs}s`;
+  return `~${secs}s`;
+}
+
+export function SyncBanner({ sync }) {
+  if (!sync) return null;
+
+  // Stage 1: Pruning Point Proof Validation (~92k headers)
+  if (sync.stage === 1) {
+    return (
+      <div style={{
+        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+        border: '1px solid rgba(245, 158, 11, 0.4)',
+        borderRadius: 'var(--radius-sm)',
+        padding: '14px 18px',
+        marginBottom: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '14px',
+      }}>
+        <style>{`
+          @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 12px rgba(245, 158, 11, 0.8); }
+            50% { opacity: 0.5; transform: scale(0.9); box-shadow: 0 0 4px rgba(245, 158, 11, 0.3); }
+          }
+          .pulse-indicator { animation: pulse-dot 1.8s infinite ease-in-out; }
+        `}</style>
+        <div style={{
+          width: '12px',
+          height: '12px',
+          borderRadius: '50%',
+          backgroundColor: '#F59E0B',
+          flexShrink: 0
+        }} className="pulse-indicator" />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, color: '#FCD34D', fontSize: '0.95rem' }}>
+            Stage 1: Pruning Point Proof Validation
+          </div>
+          <div style={{ color: '#FDE68A', fontSize: '0.85rem', marginTop: '2px' }}>
+            Validating DAG Pruning Proofs (~92k headers)... Network consensus verification in progress.
+          </div>
+        </div>
+        <div style={{ fontSize: '0.85rem', color: '#FCD34D', fontWeight: 600 }}>
+          {sync.headerCount ? `${sync.headerCount.toLocaleString()} / 92,160` : 'Verifying...'}
+        </div>
+      </div>
+    );
+  }
+
+  // Stage 2: DAA Header Catchup
+  if (sync.stage === 2) {
+    return (
+      <div style={{
+        backgroundColor: 'rgba(112, 199, 186, 0.1)',
+        border: '1px solid rgba(112, 199, 186, 0.3)',
+        borderRadius: 'var(--radius-sm)',
+        padding: '14px 18px',
+        marginBottom: '20px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--kaspa-teal)',
+              boxShadow: '0 0 8px var(--kaspa-teal)'
+            }} />
+            <span style={{ fontWeight: 600, color: 'var(--kaspa-teal)', fontSize: '0.95rem' }}>
+              Stage 2: DAA Header Catchup
+            </span>
+          </div>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            ETA: <strong style={{ color: 'var(--text-primary)' }}>{formatEta(sync.etaSeconds)}</strong>
+          </span>
+        </div>
+        <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{
+            width: `${Math.max(0.5, Math.min(100, sync.percent || sync.progress || 0))}%`,
+            height: '100%',
+            backgroundColor: 'var(--kaspa-teal)',
+            transition: 'width 0.4s ease',
+            boxShadow: '0 0 8px rgba(112,199,186,0.6)'
+          }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          <span>DAA: {sync.currentDaa ? sync.currentDaa.toLocaleString() : 0} / {sync.targetDaa ? sync.targetDaa.toLocaleString() : '...'}</span>
+          <span>{sync.percent || sync.progress || 0}%</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Stage 3: Synchronized
+  return (
+    <div style={{
+      backgroundColor: 'rgba(52, 211, 153, 0.1)',
+      border: '1px solid rgba(52, 211, 153, 0.3)',
+      borderRadius: 'var(--radius-sm)',
+      padding: '10px 18px',
+      marginBottom: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{
+          width: '10px',
+          height: '10px',
+          borderRadius: '50%',
+          backgroundColor: '#34D399',
+          boxShadow: '0 0 10px #34D399'
+        }} />
+        <span style={{ fontWeight: 600, color: '#34D399', fontSize: '0.95rem' }}>
+          Synchronized (10 BPS) • Mining Active
+        </span>
+      </div>
+      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+        DAA: {sync.currentDaa ? sync.currentDaa.toLocaleString() : 'Active'}
+      </span>
+    </div>
+  );
+}
+
+export function SyncProgressCard({ sync }) {
+  if (!sync) return null;
+
+  return (
+    <div className="card" style={{ marginTop: '24px' }}>
+      <h3 className="card-title">Kaspa Node Sync State</h3>
+      {sync.stage === 1 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ color: '#F59E0B', fontWeight: 600 }}>Stage 1: Pruning Proof Validation</span>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            Validating DAG Pruning Proofs (~92k headers)... Network consensus verification in progress.
+          </p>
+          <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{
+              width: `${Math.max(1, Math.min(100, ((sync.headerCount || 0) / 92160) * 100))}%`,
+              height: '100%',
+              backgroundColor: '#F59E0B',
+              transition: 'width 0.4s ease'
+            }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <span>Headers Verified: {sync.headerCount ? sync.headerCount.toLocaleString() : 0} / 92,160</span>
+            <span>{(((sync.headerCount || 0) / 92160) * 100).toFixed(1)}%</span>
+          </div>
+        </div>
+      )}
+
+      {sync.stage === 2 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: 'var(--kaspa-teal)', fontWeight: 600 }}>Stage 2: DAA Header Catchup</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              ETA: <strong style={{ color: 'var(--text-primary)' }}>{formatEta(sync.etaSeconds)}</strong>
+            </span>
+          </div>
+          <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{
+              width: `${Math.max(0.5, Math.min(100, sync.percent || sync.progress || 0))}%`,
+              height: '100%',
+              backgroundColor: 'var(--kaspa-teal)',
+              transition: 'width 0.4s ease'
+            }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <span>Current DAA: {sync.currentDaa ? sync.currentDaa.toLocaleString() : 0}</span>
+            <span>Target: {sync.targetDaa ? sync.targetDaa.toLocaleString() : '...'} ({sync.percent || sync.progress || 0}%)</span>
+          </div>
+        </div>
+      )}
+
+      {sync.stage === 3 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ color: '#34D399', fontWeight: 600 }}>Stage 3: Synchronized (10 BPS)</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
+              Virtual DAG tip reached. Solo mining active on port 55555.
+            </div>
+          </div>
+          <div style={{
+            padding: '6px 14px',
+            borderRadius: '16px',
+            backgroundColor: 'rgba(52, 211, 153, 0.15)',
+            color: '#34D399',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            border: '1px solid rgba(52, 211, 153, 0.4)'
+          }}>
+            Tip Synced
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [status, setStatus] = useState(null);
   const [alerts, setAlerts] = useState([]);
@@ -425,16 +632,25 @@ function App() {
     dotColor = 'red';
     message = 'Error connecting to backend API.';
   } else if (status) {
-    if (status.node.status === 'syncing') {
+    if (status.node?.stage === 1) {
       dotColor = 'yellow';
-      message = 'Node Syncing...';
+      message = status.node.syncMessage || 'Validating DAG Pruning Proofs (~92k headers)... Network consensus verification in progress.';
       showProgress = true;
-    } else if (status.bridge.status === 'waiting') {
+    } else if (status.node?.stage === 2) {
+      dotColor = 'yellow';
+      message = status.node.syncMessage || 'Catching up DAG headers to network tip...';
+      showProgress = true;
+    } else if (status.node?.isSynced || status.node?.stage === 3) {
+      if (status.bridge?.status === 'connected') {
+        dotColor = 'green';
+        message = 'Synchronized (10 BPS) • Mining Active';
+      } else {
+        dotColor = 'yellow';
+        message = 'Synchronized (10 BPS) • Waiting for ASIC connection on port 55555...';
+      }
+    } else if (status.bridge?.status === 'waiting') {
       dotColor = 'yellow';
       message = 'Waiting for ASIC connection on port 55555...';
-    } else if (status.node.status === 'synced' && status.bridge.status === 'connected') {
-      dotColor = 'green';
-      message = 'System Healthy & Connected';
     }
   }
 
@@ -476,6 +692,9 @@ function App() {
             >×</button>
           </div>
         ))}
+
+        {/* Story 1.2: Multi-Stage Initial Block Download (IBD) Banner */}
+        <SyncBanner sync={status?.node} />
         
         <div className="card">
           <h2 className="card-title">
@@ -495,9 +714,9 @@ function App() {
           }}>
             {showProgress && (
               <div style={{ marginBottom: '16px' }}>
-                <CircularProgress progress={status.node.progress} />
+                <CircularProgress progress={status.node.progress || status.node.percent || 0} />
                 <div style={{ textAlign: 'center', marginTop: '8px', color: 'var(--text-secondary)' }}>
-                  {status.node.progress}%
+                  {status.node.progress || status.node.percent || 0}%
                 </div>
               </div>
             )}
@@ -509,6 +728,9 @@ function App() {
           
           <PresetSelector />
         </div>
+
+        {/* Story 1.2: Multi-Stage IBD Progress Card */}
+        <SyncProgressCard sync={status?.node} />
         
         <HealthMonitor setAlerts={setAlerts} />
         

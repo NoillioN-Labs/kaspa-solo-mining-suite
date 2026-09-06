@@ -21,6 +21,75 @@ const STORAGE_FILE = path.join(DATA_DIR, 'telemetry_history.json');
 const BRIDGE_URL = process.env.BRIDGE_API_URL || 'http://bridge:3030';
 const KASPAD_RPC_URL = process.env.KASPAD_RPC_URL || 'http://kaspad:18110';
 
+/**
+ * Multi-Stage IBD Categorization (FR-5, UX-DR5, ARCH-2)
+ * Stage 1: Pruning Point Proof Validation (~92,160 headers)
+ * Stage 2: DAA Header Catchup to network tip with rolling rate ETA
+ * Stage 3: Synchronized (10 BPS)
+ */
+export function computeSyncStage({
+  isSynced = false,
+  headerCount = 0,
+  currentDaa = 0,
+  targetDaa = 0,
+  daaSamples = [],
+} = {}) {
+  let stage = 1;
+  let stageName = 'Proof Validation';
+  let syncMessage = 'Validating DAG Pruning Proofs (~92k headers)... Network consensus verification in progress.';
+  let syncProgress = 0;
+  let etaSeconds = null;
+
+  if (isSynced) {
+    stage = 3;
+    stageName = 'Synchronized';
+    syncMessage = 'Synchronized (10 BPS) • Mining Active';
+    syncProgress = 100;
+    etaSeconds = 0;
+  } else if (headerCount < 92160 || (currentDaa === 0 && headerCount < 95000)) {
+    stage = 1;
+    stageName = 'Proof Validation';
+    syncMessage = 'Validating DAG Pruning Proofs (~92k headers)... Network consensus verification in progress.';
+    syncProgress = headerCount > 0 ? Math.min(99.9, Number(((headerCount / 92160) * 100).toFixed(1))) : 0;
+    etaSeconds = null;
+  } else {
+    stage = 2;
+    stageName = 'Header Catchup';
+    syncMessage = 'Catching up DAG headers to network tip...';
+
+    const effectiveTarget = targetDaa > 0 ? targetDaa : (headerCount > currentDaa ? headerCount : currentDaa);
+    if (effectiveTarget > 0 && currentDaa > 0) {
+      syncProgress = Math.min(99.9, Number(((currentDaa / effectiveTarget) * 100).toFixed(1)));
+    } else {
+      syncProgress = 0;
+    }
+
+    if (Array.isArray(daaSamples) && daaSamples.length >= 2) {
+      const first = daaSamples[0];
+      const last = daaSamples[daaSamples.length - 1];
+      const deltaDaa = Number(last.daa || 0) - Number(first.daa || 0);
+      const deltaTimeSec = (Number(last.timestamp || 0) - Number(first.timestamp || 0)) / 1000;
+
+      if (deltaTimeSec >= 3 && deltaDaa > 0 && effectiveTarget > currentDaa) {
+        const daaRate = deltaDaa / deltaTimeSec;
+        etaSeconds = Math.max(1, Math.round((effectiveTarget - currentDaa) / daaRate));
+      }
+    }
+  }
+
+  return {
+    stage,
+    stageName,
+    syncMessage,
+    headerCount: Number(headerCount || 0),
+    currentDaa: Number(currentDaa || 0),
+    targetDaa: Number(targetDaa || 0),
+    percent: syncProgress,
+    etaSeconds,
+    isSynced: Boolean(isSynced),
+  };
+}
+
 export class BackgroundCollectorService {
   constructor() {
     this.pollIntervalMs = 5000; // 5 seconds polling
@@ -28,6 +97,7 @@ export class BackgroundCollectorService {
     this.last1mRollup = Date.now();
     this.last15mRollup = Date.now();
     this.last1hRollup = Date.now();
+    this.daaSamples = []; // Window of { timestamp, daa } for rolling rate ETA
 
     this.state = {
       live: {
@@ -37,9 +107,13 @@ export class BackgroundCollectorService {
         staleShares: 0,
         invalidShares: 0,
         luckEstimate: 'Calculating...',
-        nodeStatus: 'Connecting to Kaspa node...',
+        nodeStatus: 'Validating DAG Pruning Proofs (~92k headers)... Network consensus verification in progress.',
         isSynced: false,
+        syncStage: 1,
+        syncStageName: 'Proof Validation',
+        syncMessage: 'Validating DAG Pruning Proofs (~92k headers)... Network consensus verification in progress.',
         syncProgress: 0,
+        etaSeconds: null,
         currentDaa: 0,
         targetDaa: 0,
         headerCount: 0,
@@ -223,15 +297,20 @@ export class BackgroundCollectorService {
       });
     }
 
-    // Determine sync progress
-    let syncProgress = 100;
-    if (!isSynced && targetDaa > 0 && currentDaa > 0 && currentDaa < targetDaa) {
-      syncProgress = Math.min(99.9, Number(((currentDaa / targetDaa) * 100).toFixed(1)));
-    } else if (!isSynced && currentDaa > 0 && headerCount > 0 && currentDaa < headerCount) {
-      syncProgress = Math.min(99.9, Number(((currentDaa / headerCount) * 100).toFixed(1)));
-    } else if (isSynced) {
-      syncProgress = 100;
+    // Maintain rolling DAA samples for ETA calculation
+    if (currentDaa > 0) {
+      this.daaSamples.push({ timestamp: now, daa: currentDaa });
+      this.daaSamples = this.daaSamples.filter(s => now - s.timestamp <= 120000).slice(-30);
     }
+
+    // Determine multi-stage sync progress and state (Story 1.2 / FR-5)
+    const syncState = computeSyncStage({
+      isSynced,
+      headerCount,
+      currentDaa,
+      targetDaa,
+      daaSamples: this.daaSamples,
+    });
 
     // Calculate luck estimate if hashrate & difficulty available
     let luckEstimate = 'N/A (No Hashrate)';
@@ -249,9 +328,13 @@ export class BackgroundCollectorService {
       staleShares,
       invalidShares,
       luckEstimate,
-      nodeStatus: isSynced ? 'Synchronized (10 BPS)' : `Syncing DAG (${syncProgress}%)`,
-      isSynced,
-      syncProgress,
+      nodeStatus: syncState.syncMessage,
+      isSynced: syncState.isSynced,
+      syncStage: syncState.stage,
+      syncStageName: syncState.stageName,
+      syncMessage: syncState.syncMessage,
+      syncProgress: syncState.percent,
+      etaSeconds: syncState.etaSeconds,
       currentDaa,
       targetDaa: targetDaa || currentDaa,
       headerCount,
@@ -386,6 +469,21 @@ export class BackgroundCollectorService {
     this.state.minedBlocks.unshift(event);
     this.saveStorage();
     return event;
+  }
+
+  getSyncState() {
+    const { live } = this.state;
+    return {
+      stage: live.syncStage,
+      stageName: live.syncStageName,
+      syncMessage: live.syncMessage,
+      headerCount: live.headerCount,
+      currentDaa: live.currentDaa,
+      targetDaa: live.targetDaa,
+      percent: live.syncProgress,
+      etaSeconds: live.etaSeconds,
+      isSynced: live.isSynced,
+    };
   }
 
   start() {

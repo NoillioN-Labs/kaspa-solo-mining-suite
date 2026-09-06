@@ -82,9 +82,8 @@ testing:
     ratchet_tolerance_pct: 0.5 # total coverage may dip this much below baseline before failing
     baseline_file: "docs/coverage_baseline.json" # git-tracked ratchet floor
     coverage_xml: ".data/test_artifacts/coverage.xml" # primary (backend/pytest) Cobertura report; --run writes it
-    extra_coverage_xml: [] # additional Cobertura reports to aggregate into the ratchet, e.g.
-      # frontend vitest output. The gate reads Cobertura regardless of language, so a JS SPA's
-      # coverage feeds the same ratchet. The scaffold-frontend-testing skill wires this. Empty = backend only.
+    extra_coverage_xml:
+      - ".data/coverage/frontend/cobertura-coverage.xml" # frontend vitest output aggregated into ratchet (AGENTS 5.7)
   # temp_and_disk_discipline S4. The ceiling and the path belong in config, never in a
   # script. A large temp root is a SMELL (usually an expensive fixture copying bulk data
   # per-test), not a broken build -- so governance_lint warns, it does not fail.

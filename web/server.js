@@ -68,13 +68,18 @@ app.get('/api/status', (req, res) => {
   const { live } = collector.state;
   res.json({
     node: {
-      status: live.isSynced ? 'synced' : (live.syncProgress > 0 ? 'syncing' : 'connecting'),
+      status: live.isSynced ? 'synced' : (live.syncStage === 1 ? 'proof_validation' : 'syncing'),
+      stage: live.syncStage,
+      stageName: live.syncStageName,
+      syncMessage: live.syncMessage,
       progress: live.syncProgress,
       currentDaa: live.currentDaa,
       targetDaa: live.targetDaa,
       headerCount: live.headerCount,
       blockCount: live.blockCount,
       difficulty: live.difficulty,
+      etaSeconds: live.etaSeconds,
+      isSynced: live.isSynced,
     },
     bridge: {
       status: live.activeMiners > 0 ? 'connected' : 'waiting',
@@ -86,6 +91,11 @@ app.get('/api/status', (req, res) => {
     },
     luckEstimate: live.luckEstimate,
   });
+});
+
+// 1b. Multi-Stage Initial Block Download (IBD) Telemetry (Story 1.2 / FR-5 / ARCH-2)
+app.get('/api/node/sync', (req, res) => {
+  res.json(collector.getSyncState());
 });
 
 // 2. Comprehensive Stats Endpoint
