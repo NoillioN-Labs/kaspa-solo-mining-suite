@@ -1456,19 +1456,20 @@ export function MetricCardsGrid({ stats, bridge }) {
 }
 
 export function HashrateTrendChart() {
+  const [range, setRange] = useState('24h');
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    fetch('/api/history?range=24h')
+    fetch(`/api/history?range=${range}`)
       .then(res => res.json())
       .then(data => setHistory(data.data || []))
       .catch(() => {});
-  }, []);
+  }, [range]);
 
   const points = history.length > 0 ? history : [
-    { timeLabel: '00:00', hashrate: 0 },
-    { timeLabel: '12:00', hashrate: 0 },
-    { timeLabel: '24:00', hashrate: 0 }
+    { timeLabel: 'Start', hashrate: 0 },
+    { timeLabel: 'Mid', hashrate: 0 },
+    { timeLabel: 'Now', hashrate: 0 }
   ];
 
   const maxHash = Math.max(1, ...points.map(p => p.hashrate || 0));
@@ -1479,7 +1480,7 @@ export function HashrateTrendChart() {
   const coords = points.map((p, i) => {
     const x = padding + (i / Math.max(1, points.length - 1)) * (svgWidth - padding * 2);
     const y = svgHeight - padding - ((p.hashrate || 0) / maxHash) * (svgHeight - padding * 2);
-    return { x, y, label: p.timeLabel };
+    return { x, y, label: p.timeLabel || p.dateLabel };
   });
 
   const pathD = coords.reduce((acc, c, i) => (
@@ -1488,13 +1489,58 @@ export function HashrateTrendChart() {
 
   const areaD = `${pathD} L ${coords[coords.length - 1].x},${svgHeight - padding} L ${coords[0].x},${svgHeight - padding} Z`;
 
+  const rangeLabels = {
+    '24h': { title: '24-Hour Hashrate Trend', resolution: '1m Resolution', start: '24h ago' },
+    '30d': { title: '30-Day Hashrate Trend', resolution: '15m Resolution', start: '30d ago' },
+    '6m': { title: '6-Month Hashrate Trend', resolution: '1h Resolution', start: '180d ago' },
+  };
+  const activeCfg = rangeLabels[range] || rangeLabels['24h'];
+
   return (
     <div className="card" style={{ marginTop: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h3 className="card-title" style={{ marginBottom: 0 }}>24-Hour Hashrate Trend</h3>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          Peak: {maxHash.toFixed(2)} TH/s
-        </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h3 className="card-title" style={{ marginBottom: 0 }}>{activeCfg.title}</h3>
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '2px 8px',
+            borderRadius: '10px',
+            backgroundColor: 'rgba(112, 199, 186, 0.15)',
+            color: 'var(--kaspa-teal)',
+            fontWeight: 600,
+            fontFamily: "'Fira Code', monospace"
+          }}>
+            {activeCfg.resolution}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '4px' }}>
+            Peak: {maxHash.toFixed(2)} TH/s
+          </span>
+          <div style={{ display: 'inline-flex', backgroundColor: '#0A0A0C', borderRadius: 'var(--radius-sm)', padding: '2px', border: '1px solid var(--bg-surface-hover)' }}>
+            {['24h', '30d', '6m'].map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  backgroundColor: range === r ? 'var(--kaspa-teal)' : 'transparent',
+                  color: range === r ? '#000' : 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ width: '100%', height: '140px', overflow: 'visible' }}>
         <defs>
@@ -1508,7 +1554,7 @@ export function HashrateTrendChart() {
         <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="var(--bg-surface-hover)" />
         <path d={areaD} fill="url(#hashrate-grad)" />
         <path d={pathD} fill="none" stroke="#70C7BA" strokeWidth="2.5" />
-        <text x={padding} y={svgHeight - 4} fill="var(--text-secondary)" fontSize="10">24h ago</text>
+        <text x={padding} y={svgHeight - 4} fill="var(--text-secondary)" fontSize="10">{activeCfg.start}</text>
         <text x={svgWidth - padding} y={svgHeight - 4} textAnchor="end" fill="var(--text-secondary)" fontSize="10">Now</text>
       </svg>
     </div>
