@@ -14,3 +14,4 @@
 - [x] Wire frontend live data stream and block celebration trigger
 - [x] Build Umbrel packaging files (`docker-compose.yml`, `umbrel-app.yml`)
 - [x] Package suite for Umbrel release v2.1.0 with update notification compliance (`umbrel-app.yml`, `docker-compose.yml`, `docker-publish.yml`, `Dockerfile`)
+- [x] Release v2.1.3: Restore multi-screen tabbed menu navigation layout per UX specification (`EXPERIENCE.md`) with responsive desktop sidebar and mobile drawer
