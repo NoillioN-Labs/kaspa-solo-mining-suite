@@ -1,11 +1,43 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { collector } from './collector.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * Dynamically resolves local LAN IPv4 address (Story 1.3 / FR-6)
+ */
+export function getLanIp() {
+  if (process.env.HOST_LAN_IP) return process.env.HOST_LAN_IP;
+  try {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const net of interfaces[name] || []) {
+        if ((net.family === 'IPv4' || net.family === 4) && !net.internal && !net.address.startsWith('127.')) {
+          return net.address;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`[SERVER] Could not resolve network interfaces: ${err.message}`);
+  }
+  return '127.0.0.1';
+}
+
+export function getConnectionEndpoints(port = 55555) {
+  const lanIp = getLanIp();
+  return {
+    lanIp,
+    port,
+    stratumLan: `stratum+tcp://${lanIp}:${port}`,
+    stratumHostname: `stratum+tcp://umbrel.local:${port}`,
+    readinessNotice: 'ASICs can be connected now; mining will commence automatically once the node reaches the DAG tip.',
+  };
+}
 
 const app = express();
 const port = process.env.API_PORT || 3001;
@@ -88,6 +120,7 @@ app.get('/api/status', (req, res) => {
       acceptedShares: live.acceptedShares,
       staleShares: live.staleShares,
       invalidShares: live.invalidShares,
+      connection: getConnectionEndpoints(),
     },
     luckEstimate: live.luckEstimate,
   });
@@ -96,6 +129,11 @@ app.get('/api/status', (req, res) => {
 // 1b. Multi-Stage Initial Block Download (IBD) Telemetry (Story 1.2 / FR-5 / ARCH-2)
 app.get('/api/node/sync', (req, res) => {
   res.json(collector.getSyncState());
+});
+
+// 1c. Dual ASIC Connection Endpoints (Story 1.3 / FR-6 / UX-DR6)
+app.get('/api/connection', (req, res) => {
+  res.json(getConnectionEndpoints());
 });
 
 // 2. Comprehensive Stats Endpoint

@@ -582,6 +582,145 @@ export function SyncProgressCard({ sync }) {
   );
 }
 
+export function AsicConnectionCard({ connection }) {
+  const [copiedKey, setCopiedKey] = useState(null);
+
+  const conn = connection || {
+    lanIp: '127.0.0.1',
+    port: 55555,
+    stratumLan: 'stratum+tcp://127.0.0.1:55555',
+    stratumHostname: 'stratum+tcp://umbrel.local:55555',
+  };
+
+  const handleCopy = (key, text) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+    setCopiedKey(key);
+    setTimeout(() => {
+      setCopiedKey(prev => (prev === key ? null : prev));
+    }, 2000);
+  };
+
+  return (
+    <div className="card" style={{ marginTop: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <h3 className="card-title" style={{ marginBottom: 0 }}>ASIC Stratum Connection Points</h3>
+        <span style={{ fontSize: '0.8rem', color: 'var(--kaspa-teal)', fontWeight: 500 }}>
+          Port: {conn.port || 55555}
+        </span>
+      </div>
+
+      {/* Mining Readiness Callout (UX-DR6) */}
+      <div style={{
+        backgroundColor: 'rgba(112, 199, 186, 0.08)',
+        border: '1px solid rgba(112, 199, 186, 0.25)',
+        borderRadius: 'var(--radius-sm)',
+        padding: '10px 14px',
+        marginBottom: '16px',
+        fontSize: '0.85rem',
+        color: '#A7F3D0',
+        lineHeight: 1.4,
+      }}>
+        ℹ️ <strong>Ready:</strong> ASICs can be connected now; mining will commence automatically once the node reaches the DAG tip.
+      </div>
+
+      {/* Primary: LAN IP (Recommended for IceRiver & Antminer ASICs) */}
+      <div style={{ marginBottom: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Primary (Direct LAN IPv4 — Recommended for IceRiver/Antminer):
+          </span>
+          <span style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600 }}>Zero mDNS Issues</span>
+        </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          backgroundColor: '#0A0A0C',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--bg-surface-hover)',
+          padding: '6px 10px',
+        }}>
+          <code style={{
+            flex: 1,
+            color: 'var(--kaspa-teal)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.875rem',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {conn.stratumLan}
+          </code>
+          <button
+            onClick={() => handleCopy('lan', conn.stratumLan)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: copiedKey === 'lan' ? '#10B981' : 'var(--bg-surface)',
+              color: copiedKey === 'lan' ? '#000' : 'var(--text-primary)',
+              border: '1px solid var(--bg-surface-hover)',
+              fontWeight: 600,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              marginLeft: '8px',
+            }}
+          >
+            {copiedKey === 'lan' ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      </div>
+
+      {/* Secondary: Local Hostname (umbrel.local) */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Secondary (Local Hostname / mDNS):
+          </span>
+        </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          backgroundColor: '#0A0A0C',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--bg-surface-hover)',
+          padding: '6px 10px',
+        }}>
+          <code style={{
+            flex: 1,
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.875rem',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {conn.stratumHostname}
+          </code>
+          <button
+            onClick={() => handleCopy('hostname', conn.stratumHostname)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: copiedKey === 'hostname' ? '#10B981' : 'var(--bg-surface)',
+              color: copiedKey === 'hostname' ? '#000' : 'var(--text-primary)',
+              border: '1px solid var(--bg-surface-hover)',
+              fontWeight: 600,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              marginLeft: '8px',
+            }}
+          >
+            {copiedKey === 'hostname' ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [status, setStatus] = useState(null);
   const [alerts, setAlerts] = useState([]);
@@ -731,6 +870,9 @@ function App() {
 
         {/* Story 1.2: Multi-Stage IBD Progress Card */}
         <SyncProgressCard sync={status?.node} />
+
+        {/* Story 1.3: Dual ASIC Stratum Connection Point & Quick-Copy */}
+        <AsicConnectionCard connection={status?.bridge?.connection} />
         
         <HealthMonitor setAlerts={setAlerts} />
         
