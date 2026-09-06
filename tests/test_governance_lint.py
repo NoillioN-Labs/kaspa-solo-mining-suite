@@ -75,6 +75,7 @@ def test_walk_does_not_flag_itself(tmp_path: Path) -> None:
 # -LiteralPath + wildcard: copies nothing, silently (AGENTS 5.5.1 class)
 # ---------------------------------------------------------------------------
 
+
 def _flag(text: str) -> list[str]:
     result = governance_lint.CheckResult("windows-traps", "t")
     governance_lint.flag_literalpath_wildcards(result, Path("probe.ps1"), text)
@@ -141,6 +142,7 @@ def test_a_deliberate_counter_example_can_be_suppressed() -> None:
 # default onto the OS drive.
 # ---------------------------------------------------------------------------
 
+
 def _flag_c_drive(text: str) -> list[str]:
     result = governance_lint.CheckResult("windows-traps", "t")
     governance_lint.flag_c_drive_and_tempfile_defaults(result, Path("probe.py"), text)
@@ -179,10 +181,7 @@ def test_tempfile_mkstemp_with_dir_is_not_flagged() -> None:
 
 
 def test_c_drive_lint_ignore_suppresses_the_line() -> None:
-    text = (
-        "# LINT-IGNORE: documenting the bug, not writing it\n"
-        'OUT_DIR = "C:\\\\renders"\n'
-    )
+    text = '# LINT-IGNORE: documenting the bug, not writing it\nOUT_DIR = "C:\\\\renders"\n'
 
     assert not _flag_c_drive(text)
 
@@ -198,9 +197,7 @@ def _repo(tmp_path: Path, *, map_body: str | None = None, extras: list[str] | No
     planning = tmp_path / "_bmad-output" / "planning-artifacts"
     planning.mkdir(parents=True)
     (tmp_path / "config.yaml").write_text(
-        "knowledge:\n"
-        f"  architecture_map: \"{MAP_REL}\"\n"
-        "  architecture_max_age_days: 90\n",
+        f'knowledge:\n  architecture_map: "{MAP_REL}"\n  architecture_max_age_days: 90\n',
         encoding="utf-8",
     )
     if map_body is not None:
@@ -282,8 +279,8 @@ def _knowledge_repo(tmp_path: Path, memory_store: str, skills_registry: str) -> 
     (root / "docs" / "memory").mkdir(parents=True)
     (root / "config.yaml").write_text(
         "knowledge:\n"
-        f"  memory_store: \"{memory_store}\"\n"
-        f"  skills_registry: \"{skills_registry}\"\n"
+        f'  memory_store: "{memory_store}"\n'
+        f'  skills_registry: "{skills_registry}"\n'
         "  memory_max_page_bytes: 800\n",
         encoding="utf-8",
     )
@@ -383,27 +380,36 @@ def _template_repo(tmp_path: Path, pages: dict[str, str]) -> Path:
 
 
 def test_declared_inheritance_passes(tmp_path: Path) -> None:
-    root = _template_repo(tmp_path, {
-        "keep.md": "name: keep\nmetadata:\n  type: project\n  inherit: true\n",
-        "drop.md": "name: drop\nmetadata:\n  type: project\n  inherit: false\n",
-    })
+    root = _template_repo(
+        tmp_path,
+        {
+            "keep.md": "name: keep\nmetadata:\n  type: project\n  inherit: true\n",
+            "drop.md": "name: drop\nmetadata:\n  type: project\n  inherit: false\n",
+        },
+    )
     assert not governance_lint.check_memory_inheritance_declared(root).findings
 
 
 def test_undeclared_inheritance_is_an_error(tmp_path: Path) -> None:
     """The silent-drop failure mode: an undeclared page disappears from every clone."""
-    root = _template_repo(tmp_path, {
-        "silent.md": "name: silent\nmetadata:\n  type: project\n",
-    })
+    root = _template_repo(
+        tmp_path,
+        {
+            "silent.md": "name: silent\nmetadata:\n  type: project\n",
+        },
+    )
     findings = governance_lint.check_memory_inheritance_declared(root).findings
     assert [f.severity for f in findings] == [governance_lint.SEVERITY_ERROR]
     assert "metadata.inherit" in findings[0].message
 
 
 def test_non_boolean_inheritance_is_an_error(tmp_path: Path) -> None:
-    root = _template_repo(tmp_path, {
-        "fuzzy.md": "name: fuzzy\nmetadata:\n  type: project\n  inherit: maybe\n",
-    })
+    root = _template_repo(
+        tmp_path,
+        {
+            "fuzzy.md": "name: fuzzy\nmetadata:\n  type: project\n  inherit: maybe\n",
+        },
+    )
     findings = governance_lint.check_memory_inheritance_declared(root).findings
     assert [f.severity for f in findings] == [governance_lint.SEVERITY_ERROR]
     assert "boolean" in findings[0].message
@@ -413,15 +419,15 @@ def test_inheritance_check_is_template_scoped(tmp_path: Path) -> None:
     """The fleet's ~50 existing pages predate the flag; demanding it everywhere would
     fail lint in every project for no benefit."""
     root = _template_repo(tmp_path, {"x.md": "name: x\nmetadata:\n  type: project\n"})
-    (root / "_bmad" / "config.toml").write_text(
-        '[core]\nproject_name = "Horse racing tips"\n', encoding="utf-8"
-    )
+    (root / "_bmad" / "config.toml").write_text('[core]\nproject_name = "Horse racing tips"\n', encoding="utf-8")
     result = governance_lint.check_memory_inheritance_declared(root)
     assert result.skipped and not result.findings
 
 
 def test_every_template_memory_page_declares_inheritance() -> None:
     """Live check against this repo: the real pages must all be classified."""
+    if not governance_lint.is_master_template(Path(".")):
+        pytest.skip("Clone project: memory inheritance check only runs on the master template repo")
     result = governance_lint.check_memory_inheritance_declared(Path("."))
     assert not result.findings, [f.message for f in result.findings]
     assert not result.skipped, "this IS the template; the check must not skip here"
@@ -440,9 +446,7 @@ def test_every_template_memory_page_declares_inheritance() -> None:
 def test_adr_reference_in_an_inherited_script_is_an_error(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     (root / "scripts" / "utilities").mkdir(parents=True)
-    (root / "scripts" / "utilities" / "thing.py").write_text(
-        '"""Does a thing (ADR-0016)."""\n', encoding="utf-8"
-    )
+    (root / "scripts" / "utilities" / "thing.py").write_text('"""Does a thing (ADR-0016)."""\n', encoding="utf-8")
     findings = governance_lint.check_adr_references(root).findings
     assert [f.severity for f in findings] == [governance_lint.SEVERITY_ERROR]
     assert "ADR-0016" in findings[0].message
@@ -451,9 +455,7 @@ def test_adr_reference_in_an_inherited_script_is_an_error(tmp_path: Path) -> Non
 def test_agents_section_citation_is_accepted(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     (root / "scripts" / "utilities").mkdir(parents=True)
-    (root / "scripts" / "utilities" / "thing.py").write_text(
-        '"""Does a thing (AGENTS 5.5.1)."""\n', encoding="utf-8"
-    )
+    (root / "scripts" / "utilities" / "thing.py").write_text('"""Does a thing (AGENTS 5.5.1)."""\n', encoding="utf-8")
     assert not governance_lint.check_adr_references(root).findings
 
 
@@ -478,16 +480,12 @@ def _bare_repo(tmp_path: Path, *, is_template: bool) -> Path:
     root = tmp_path / "repo"
     (root / "_bmad").mkdir(parents=True)
     name = governance_lint.TEMPLATE_PROJECT_NAME if is_template else "some-client-project"
-    (root / "_bmad" / "config.toml").write_text(
-        f'[core]\nproject_name = "{name}"\n', encoding="utf-8"
-    )
+    (root / "_bmad" / "config.toml").write_text(f'[core]\nproject_name = "{name}"\n', encoding="utf-8")
     return root
 
 
 @pytest.mark.parametrize("relpath", governance_lint.ADR_REF_SCAN_TEMPLATE_ONLY_FILES)
-def test_adr_reference_in_an_inherited_config_file_is_an_error_in_the_master(
-    tmp_path: Path, relpath: str
-) -> None:
+def test_adr_reference_in_an_inherited_config_file_is_an_error_in_the_master(tmp_path: Path, relpath: str) -> None:
     """The master ships these verbatim, so a number here is a number nobody chose."""
     root = _bare_repo(tmp_path, is_template=True)
     target = root / relpath
@@ -519,6 +517,7 @@ def test_a_clone_may_cite_its_own_adrs_in_these_files(tmp_path: Path, relpath: s
 # temp_and_disk_discipline S5 -- narrow the C:-literal check, keep tempfile universal
 # ---------------------------------------------------------------------------
 
+
 def test_c_drive_literal_is_exempt_in_tests_and_generated_artifacts() -> None:
     """A literal C: path is a DESTINATION in app code and INPUT DATA in a test.
 
@@ -547,9 +546,7 @@ def test_tempfile_checks_still_fire_inside_tests_while_the_literal_does_not() ->
     text = 'p = "C:\\Temp\\fixture"\nd = tempfile.mkdtemp()\n'
 
     in_test = governance_lint.CheckResult("windows-traps", "t")
-    governance_lint.flag_c_drive_and_tempfile_defaults(
-        in_test, Path("tests") / "test_thing.py", text
-    )
+    governance_lint.flag_c_drive_and_tempfile_defaults(in_test, Path("tests") / "test_thing.py", text)
     messages = " ".join(f.message for f in in_test.findings)
     assert "hardcodes a C: path" not in messages, "literal check must be exempt in tests/"
     assert "no dir=" in messages, (
@@ -558,9 +555,7 @@ def test_tempfile_checks_still_fire_inside_tests_while_the_literal_does_not() ->
     )
 
     in_app = governance_lint.CheckResult("windows-traps", "t")
-    governance_lint.flag_c_drive_and_tempfile_defaults(
-        in_app, Path("backend") / "core" / "thing.py", text
-    )
+    governance_lint.flag_c_drive_and_tempfile_defaults(in_app, Path("backend") / "core" / "thing.py", text)
     app_messages = " ".join(f.message for f in in_app.findings)
     assert "hardcodes a C: path" in app_messages, "app code must still be flagged"
 
@@ -568,6 +563,7 @@ def test_tempfile_checks_still_fire_inside_tests_while_the_literal_does_not() ->
 # ---------------------------------------------------------------------------
 # temp_and_disk_discipline S4c -- test temp-root ceiling
 # ---------------------------------------------------------------------------
+
 
 def _write_config(root: Path, body: str) -> None:
     (root / "config.yaml").write_text(body, encoding="utf-8")
@@ -595,9 +591,9 @@ def test_temp_root_check_warns_only_above_the_ceiling(tmp_path: Path) -> None:
     result = governance_lint.check_test_temp_root(tmp_path)
     assert result.skipped is False
     assert any("over the" in f.message for f in result.findings), "should warn above ceiling"
-    assert all(
-        f.severity == governance_lint.SEVERITY_WARNING for f in result.findings
-    ), "an oversized temp root is a smell, not a broken build -- WARNING, never ERROR"
+    assert all(f.severity == governance_lint.SEVERITY_WARNING for f in result.findings), (
+        "an oversized temp root is a smell, not a broken build -- WARNING, never ERROR"
+    )
 
     under = "testing:\n  temp_root: 'pytest_tmp'\n  temp_root_max_gb: 10.0\n"
     _write_config(tmp_path, under)

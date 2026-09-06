@@ -217,15 +217,20 @@ def prune(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--daily-count", type=int, default=None,
+        "--daily-count",
+        type=int,
+        default=None,
         help="Override config.yaml's database_backups.daily_count for this run.",
     )
     parser.add_argument(
-        "--weekly-count", type=int, default=None,
+        "--weekly-count",
+        type=int,
+        default=None,
         help="Override config.yaml's database_backups.weekly_count for this run.",
     )
     parser.add_argument(
-        "--execute", action="store_true",
+        "--execute",
+        action="store_true",
         help="Actually delete. Without this flag, only reports what would be deleted.",
     )
     args = parser.parse_args()

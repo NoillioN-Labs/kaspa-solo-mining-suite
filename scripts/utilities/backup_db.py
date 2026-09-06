@@ -68,8 +68,7 @@ def backup(
         configured = str(config.get("db_path") or "").strip()
         if not configured:
             raise ValueError(
-                "database_backups.db_path is not set in config.yaml; nothing to back up. "
-                "Set it, or pass --db-path."
+                "database_backups.db_path is not set in config.yaml; nothing to back up. Set it, or pass --db-path."
             )
         db_path = Path(configured)
     db_path = Path(db_path)
@@ -139,9 +138,7 @@ def backup(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db-path", default=None, help="Override database_backups.db_path")
-    parser.add_argument(
-        "--no-prune", action="store_true", help="Create the backup without applying retention"
-    )
+    parser.add_argument("--no-prune", action="store_true", help="Create the backup without applying retention")
     args = parser.parse_args(argv)
 
     try:

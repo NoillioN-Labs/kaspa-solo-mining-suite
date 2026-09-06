@@ -74,12 +74,12 @@ def test_hooks_are_pinned_to_LF_line_endings() -> None:
     """
     assert b"\r" not in HOOK.read_bytes(), "the working-tree hook must be LF-only"
     attrs = (REPO / ".gitattributes").read_text(encoding="utf-8")
-    assert "scripts/hooks/** text eol=lf" in attrs, (
-        "without this pin git re-introduces CRLF on every fresh clone"
-    )
+    assert "scripts/hooks/** text eol=lf" in attrs, "without this pin git re-introduces CRLF on every fresh clone"
     resolved = subprocess.run(
         ["git", "check-attr", "eol", "--", "scripts/hooks/pre-push"],
-        cwd=str(REPO), capture_output=True, text=True,
+        cwd=str(REPO),
+        capture_output=True,
+        text=True,
     )
     assert "eol: lf" in resolved.stdout, f"git disagrees: {resolved.stdout.strip()}"
 
@@ -99,9 +99,7 @@ def test_hooks_are_pinned_to_LF_line_endings() -> None:
         ("branch deletion", f"refs/heads/master {ZERO} refs/heads/master {SHA_B}", {}, 0),
     ],
 )
-def test_push_guard_blocks_only_what_it_should(
-    label: str, ref_line: str, env: dict[str, str], expected: int
-) -> None:
+def test_push_guard_blocks_only_what_it_should(label: str, ref_line: str, env: dict[str, str], expected: int) -> None:
     assert _run_hook(ref_line + "\n", env) == expected, f"{label}: wrong exit code"
 
 
@@ -138,6 +136,7 @@ def test_constitution_no_longer_teaches_the_behaviour_that_caused_the_incident()
 # ---------------------------------------------------------------------------
 # Database backup retention (temp_and_disk_discipline S6)
 # ---------------------------------------------------------------------------
+
 
 def _backup(dirpath: Path, when: date, hhmmss: str = "010000", prefix: str = "backup") -> Path:
     path = dirpath / f"{prefix}_{when:%Y%m%d}_{hhmmss}.db"
@@ -234,6 +233,7 @@ def test_db_retention_ignores_a_shaped_but_impossible_date(tmp_path: Path) -> No
 # Project-scoped temp (temp_and_disk_discipline S2 / S3)
 # ---------------------------------------------------------------------------
 
+
 def test_project_temp_helper_ships_and_stays_off_the_boot_drive() -> None:
     from backend.core.paths import PROJECT_ROOT, new_temp_dir, project_temp_dir
 
@@ -266,6 +266,7 @@ def test_embedded_script_token_refuses_a_silent_no_op() -> None:
 # ---------------------------------------------------------------------------
 # Bidirectional numbering registry (sprint_status_bidirectional_registry_check S3)
 # ---------------------------------------------------------------------------
+
 
 def test_the_numbering_registry_is_checked_in_BOTH_directions() -> None:
     """`sync_sprint_status.py` only ever proved story file -> registry row.

@@ -67,10 +67,34 @@ _DEFAULT_TEXT_FIELDS = ("title", "target")
 #: Headings that mark a section as making an absence claim.
 _SECTION_HEADING_RE = re.compile(r"GENUINELY ABSENT|IMPOSSIBLE|NOT SUPPORTED", re.IGNORECASE)
 _BULLET_CLAIM_RE = re.compile(r"^\s*[*-]\s+\*\*(?P<label>[^*]+)\*\*", re.MULTILINE)
-_STOPWORDS = frozenset({
-    "a", "an", "the", "of", "on", "in", "to", "and", "or", "not", "is", "are", "for",
-    "with", "this", "that", "it", "its", "as", "at", "by", "from", "into", "verified",
-})
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "of",
+        "on",
+        "in",
+        "to",
+        "and",
+        "or",
+        "not",
+        "is",
+        "are",
+        "for",
+        "with",
+        "this",
+        "that",
+        "it",
+        "its",
+        "as",
+        "at",
+        "by",
+        "from",
+        "into",
+        "verified",
+    }
+)
 #: Two shared significant words is the floor before a match is worth a human's time.
 #: Tune this and _STOPWORDS against real false-positive experience -- it is a starting
 #: point, not a tuned mechanism.
@@ -173,15 +197,18 @@ def find_stale_claims(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "--prompt", type=str, action="append", default=None,
+        "--prompt",
+        type=str,
+        action="append",
+        default=None,
         help="Explicit prompt file(s) to scan, instead of the configured globs.",
     )
     parser.add_argument(
-        "--registry", type=str, default=None,
+        "--registry",
+        type=str,
+        default=None,
         help="Override capability_registry.path for this run.",
     )
     args = parser.parse_args(argv)

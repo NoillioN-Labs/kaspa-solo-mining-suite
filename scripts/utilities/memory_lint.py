@@ -81,8 +81,15 @@ DECISION_RE: re.Pattern[str] = re.compile(
 )
 
 REPO_PREFIXES: tuple[str, ...] = (
-    "scripts/", "docs/", "backend/", "frontend/", "tests/", "_bmad-output/", "_bmad/",
-    ".agent/", ".github/",
+    "scripts/",
+    "docs/",
+    "backend/",
+    "frontend/",
+    "tests/",
+    "_bmad-output/",
+    "_bmad/",
+    ".agent/",
+    ".github/",
 )
 BACKTICK_RE: re.Pattern[str] = re.compile(r"`([^`\n]+?)`")
 
@@ -142,6 +149,7 @@ class MemoryPage:
 # Loading
 # ---------------------------------------------------------------------------
 
+
 def read_text(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -188,14 +196,13 @@ def resolve_configured_path(repo_root: Path, value: str) -> Path:
 
 
 def discover_pages(memory_dir: Path) -> list[MemoryPage]:
-    return [
-        parse_page(p) for p in sorted(memory_dir.glob("*.md")) if p.name.upper() != "MEMORY.MD"
-    ]
+    return [parse_page(p) for p in sorted(memory_dir.glob("*.md")) if p.name.upper() != "MEMORY.MD"]
 
 
 # ---------------------------------------------------------------------------
 # Schema: the prevention layer
 # ---------------------------------------------------------------------------
+
 
 def check_schema(pages: list[MemoryPage], max_page_bytes: int) -> CheckResult:
     """Every page is Fact + Why + Authority, under the cap. No thresholds, no guessing.
@@ -235,9 +242,7 @@ def check_schema(pages: list[MemoryPage], max_page_bytes: int) -> CheckResult:
     return result
 
 
-def check_authority(
-    pages: list[MemoryPage], repo_root: Path, registry: Path, config: dict
-) -> CheckResult:
+def check_authority(pages: list[MemoryPage], repo_root: Path, registry: Path, config: dict) -> CheckResult:
     """**The check that makes this work.** Does the cited authority actually exist?
 
     A pointer either resolves or it does not - there is nothing to tune and nothing to
@@ -274,10 +279,7 @@ def check_authority(
             resolved = True
             top = section.split(".")[0]
             if not re.search(rf"^#+\s*{re.escape(top)}\.", agents, re.MULTILINE):
-                result.add(
-                    SEVERITY_ERROR,
-                    f"cites AGENTS section {section}, which does not exist", page.path
-                )
+                result.add(SEVERITY_ERROR, f"cites AGENTS section {section}, which does not exist", page.path)
 
         for number in ADR_RE.findall(raw):
             resolved = True
@@ -285,17 +287,12 @@ def check_authority(
             if not list((repo_root / "docs" / "ADR").glob(f"{padded}-*.md")):
                 result.add(SEVERITY_ERROR, f"cites ADR-{padded}, which does not exist", page.path)
             elif f"[{padded}]" not in register:
-                result.add(
-                    SEVERITY_WARNING,
-                    f"cites ADR-{padded}, which has no row in the ADR register", page.path
-                )
+                result.add(SEVERITY_WARNING, f"cites ADR-{padded}, which has no row in the ADR register", page.path)
 
         for skill in SKILL_RE.findall(raw):
             resolved = True
             if registry.is_dir() and not (registry / skill).is_dir():
-                result.add(
-                    SEVERITY_ERROR, f"cites skill `{skill}`, which is not in the registry", page.path
-                )
+                result.add(SEVERITY_ERROR, f"cites skill `{skill}`, which is not in the registry", page.path)
 
         for candidate in PATH_RE.findall(raw):
             if ADR_RE.search(candidate) or candidate.lower().startswith("agents"):
@@ -305,9 +302,7 @@ def check_authority(
                 target = repo_root / str(arch)
             resolved = True
             if not target.exists():
-                result.add(
-                    SEVERITY_ERROR, f"cites `{candidate}`, which does not exist", page.path
-                )
+                result.add(SEVERITY_ERROR, f"cites `{candidate}`, which does not exist", page.path)
 
         if not resolved:
             result.add(
@@ -323,6 +318,7 @@ def check_authority(
 # Integrity: unchanged, and objective
 # ---------------------------------------------------------------------------
 
+
 def check_index(memory_dir: Path, pages: list[MemoryPage]) -> CheckResult:
     """A page missing from the index is never loaded; a row for a deleted page is a lie."""
     result = CheckResult("index-drift", "MEMORY.md index matches the store")
@@ -332,9 +328,7 @@ def check_index(memory_dir: Path, pages: list[MemoryPage]) -> CheckResult:
         return result
 
     listed = {
-        match.group(1).strip()
-        for line in read_text(index_path).splitlines()
-        if (match := INDEX_ROW_RE.match(line))
+        match.group(1).strip() for line in read_text(index_path).splitlines() if (match := INDEX_ROW_RE.match(line))
     }
     on_disk = {p.path.name for p in pages}
 
@@ -412,7 +406,7 @@ def check_decommissioned_concepts(pages: list[MemoryPage]) -> CheckResult:
                         SEVERITY_WARNING,
                         f"mentions decommissioned concept '{term}' without explicitly marking it "
                         "as decommissioned/retired/legacy. Verify this page is not stale",
-                        page.path
+                        page.path,
                     )
     return result
 
@@ -446,6 +440,7 @@ def check_skills(registry: Path) -> CheckResult:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def run_checks(
     repo_root: Path, memory_dir: Path, registry: Path, max_page_bytes: int, config: dict | None = None
@@ -483,9 +478,7 @@ def main() -> None:
     config = load_config(repo_root)
 
     memory_dir = resolve_configured_path(repo_root, args.memory_dir or config.get("memory_store", ""))
-    registry = resolve_configured_path(
-        repo_root, args.skills_registry or config.get("skills_registry", "")
-    )
+    registry = resolve_configured_path(repo_root, args.skills_registry or config.get("skills_registry", ""))
     max_page_bytes = int(config.get("memory_max_page_bytes", DEFAULT_MAX_PAGE_BYTES))
 
     if not memory_dir or not memory_dir.is_dir():
@@ -501,11 +494,16 @@ def main() -> None:
         # --json this branch too must emit pure JSON -- the skeptic pass caught
         # it emitting prose here while the comment below promised structure.
         if args.json:
-            print(json.dumps({
-                "pages_examined": 0,
-                "findings": [],
-                "skipped": [{"name": "all", "reason": "0 memory pages - health UNVERIFIED"}],
-            }, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "pages_examined": 0,
+                        "findings": [],
+                        "skipped": [{"name": "all", "reason": "0 memory pages - health UNVERIFIED"}],
+                    },
+                    indent=2,
+                )
+            )
         else:
             print("[SKIP] 0 memory pages found - health UNVERIFIED, not perfect.")
             print("       An empty cache in a governed project usually means the junction")
@@ -521,11 +519,16 @@ def main() -> None:
         # PURE JSON on stdout -- the prose header used to precede it, so every
         # consumer's json.loads failed on line one (ML-3). Structured, so an empty
         # store is distinguishable from a clean one (AGENTS 4.1 axis 7).
-        print(json.dumps({
-            "pages_examined": len([q for q in memory_dir.glob("*.md") if q.name != "MEMORY.md"]),
-            "findings": [asdict(f) for r in results for f in r.findings],
-            "skipped": [{"name": r.name, "reason": r.skip_reason} for r in results if r.skipped],
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "pages_examined": len([q for q in memory_dir.glob("*.md") if q.name != "MEMORY.md"]),
+                    "findings": [asdict(f) for r in results for f in r.findings],
+                    "skipped": [{"name": r.name, "reason": r.skip_reason} for r in results if r.skipped],
+                },
+                indent=2,
+            )
+        )
     else:
         for result in results:
             if result.skipped:

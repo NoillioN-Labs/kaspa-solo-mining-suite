@@ -54,14 +54,16 @@ def _daily_backup_names(count: int, *, last_day: str = "2026-06-21") -> list[str
     exercising ONE of the two tiers while appearing to test both.
     """
     end = date.fromisoformat(last_day)
-    return [
-        f"{PREFIX}_{(end - timedelta(days=i)).strftime('%Y%m%d')}_060000.db"
-        for i in range(count - 1, -1, -1)
-    ]
+    return [f"{PREFIX}_{(end - timedelta(days=i)).strftime('%Y%m%d')}_060000.db" for i in range(count - 1, -1, -1)]
 
 
 def _config_file(
-    tmp_path: Path, dest_root: Path, *, enabled: bool, daily: int = 7, weekly: int = 4,
+    tmp_path: Path,
+    dest_root: Path,
+    *,
+    enabled: bool,
+    daily: int = 7,
+    weekly: int = 4,
     backup_dir: str | None = None,
 ) -> Path:
     """A self-contained config, so no test here inherits the production values.
@@ -79,8 +81,7 @@ def _config_file(
         "database_backups:\n"
         f"  filename_prefix: '{PREFIX}'\n"
         f"  daily_count: {daily}\n"
-        f"  weekly_count: {weekly}\n"
-        + (f"  backup_dir: '{backup_dir}'\n" if backup_dir else ""),
+        f"  weekly_count: {weekly}\n" + (f"  backup_dir: '{backup_dir}'\n" if backup_dir else ""),
         encoding="utf-8",
     )
     return config
@@ -89,6 +90,7 @@ def _config_file(
 # ---------------------------------------------------------------------------
 # The category itself -- present, and inert
 # ---------------------------------------------------------------------------
+
 
 def test_the_snapshot_category_is_a_built_in_and_the_template_ships_it_off() -> None:
     """Two facts that pull in opposite directions, both required.
@@ -116,6 +118,7 @@ def test_the_snapshot_category_is_a_built_in_and_the_template_ships_it_off() -> 
 # ---------------------------------------------------------------------------
 # Retention at the destination -- an independent policy, never a sync
 # ---------------------------------------------------------------------------
+
 
 def test_destination_prune_applies_gfs_to_the_destinations_own_contents(tmp_path: Path) -> None:
     """21 consecutive dailies at the destination; a 7-daily + 2-weekly policy keeps 9.
@@ -220,7 +223,8 @@ def test_the_announced_candidates_are_the_files_actually_deleted(tmp_path: Path,
     after = {p.name for p in backups.iterdir()}
 
     announced = {
-        line.strip() for line in capsys.readouterr().out.splitlines()
+        line.strip()
+        for line in capsys.readouterr().out.splitlines()
         if line.startswith("      ") and line.strip().endswith(".db")
     }
     assert announced, "a delete that announces nothing is not auditable"
@@ -320,6 +324,7 @@ def test_destination_retention_survives_a_source_side_catastrophe(tmp_path: Path
 # tested at both the entry point and the gate itself
 # ---------------------------------------------------------------------------
 
+
 def test_retention_does_not_run_when_the_category_is_disabled(tmp_path: Path) -> None:
     """Driven through the public entry point: `include.database_backups: false` is the
     documented way to turn the mirror OFF, and it must not convert a nightly job into a
@@ -363,8 +368,11 @@ def test_prune_destination_backups_itself_refuses_a_disabled_category(tmp_path: 
 # "Nothing was attempted" must never read as success (AGENTS 5.5.1)
 # ---------------------------------------------------------------------------
 
+
 def test_a_missing_pruner_warns_loudly_instead_of_returning_a_quiet_zero(
-    tmp_path: Path, monkeypatch, capsys,
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
 ) -> None:
     """Both import styles failing means the retention pass DID NOT RUN. Reported as a
     quiet {0, 0, 0} that is indistinguishable from "there was nothing to prune", which
@@ -389,7 +397,9 @@ def test_a_missing_pruner_warns_loudly_instead_of_returning_a_quiet_zero(
 
 
 def test_main_counts_a_skipped_retention_pass_as_a_failure_never_as_a_credit(
-    tmp_path: Path, monkeypatch, capsys,
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
 ) -> None:
     """The -1 sentinel is a failure to REPORT, not a number to add.
 
@@ -404,7 +414,8 @@ def test_main_counts_a_skipped_retention_pass_as_a_failure_never_as_a_credit(
     dest_root.mkdir()
     monkeypatch.setattr(bpd, "PROJECT_ROOT", project_root)
     monkeypatch.setattr(
-        bpd, "_load_backup_config",
+        bpd,
+        "_load_backup_config",
         lambda config_path=None: {
             "destination_path": str(dest_root),
             "include": {"database_backups": True},
@@ -422,7 +433,8 @@ def test_main_counts_a_skipped_retention_pass_as_a_failure_never_as_a_credit(
 
 
 def test_mirror_enabled_categories_reports_an_unconfigured_destination_as_a_failure(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     """A caller embedded in a scheduled job needs a REPORTABLE result, not an exception
     -- and "no destination configured" must never read as success."""
@@ -444,9 +456,7 @@ def test_a_missing_destination_root_is_refused_not_created(tmp_path: Path, capsy
     missing = tmp_path / "not-mounted"
     config = _config_file(tmp_path, missing, enabled=True)
 
-    result = bpd.mirror_enabled_categories(
-        execute=True, project_root=project_root, config_path=config
-    )
+    result = bpd.mirror_enabled_categories(execute=True, project_root=project_root, config_path=config)
 
     assert result["failed"] == -1
     assert not missing.exists(), "the destination must never be auto-created"
@@ -454,12 +464,10 @@ def test_a_missing_destination_root_is_refused_not_created(tmp_path: Path, capsy
 
 
 def test_verify_landed_confirms_this_runs_snapshot_reached_the_destination(tmp_path: Path) -> None:
-    """"Did we copy anything" cannot answer "did TONIGHT'S backup land" -- a legitimate
+    """ "Did we copy anything" cannot answer "did TONIGHT'S backup land" -- a legitimate
     re-run copies 0 and skips 15. The check must name the artefact (AGENTS 4.1 axis 3)."""
     project_root = tmp_path / "project"
-    snapshot = _write_backup(
-        project_root / ".data" / "backups", f"{PREFIX}_20260621_060000.db", "tonight"
-    )
+    snapshot = _write_backup(project_root / ".data" / "backups", f"{PREFIX}_20260621_060000.db", "tonight")
     dest_root = tmp_path / "dest"
     dest_root.mkdir()
     landed = dest_root / ".data" / "backups" / f"{PREFIX}_20260621_060000.db"
@@ -487,6 +495,7 @@ def test_verify_landed_confirms_this_runs_snapshot_reached_the_destination(tmp_p
 # The copy itself -- a failed copy must leave nothing that looks like a backup
 # ---------------------------------------------------------------------------
 
+
 def test_a_truncated_destination_copy_is_re_copied_not_called_current(tmp_path: Path) -> None:
     """The worst failure a backup system can have: an offsite copy that is silently
     truncated and reports healthy forever.
@@ -496,9 +505,7 @@ def test_a_truncated_destination_copy_is_re_copied_not_called_current(tmp_path: 
     freshness test skips it every subsequent night. Loud once, green forever.
     """
     project_root = tmp_path / "project"
-    src = _write_backup(
-        project_root / ".data" / "backups", f"{PREFIX}_20260621_060000.db", "full content"
-    )
+    src = _write_backup(project_root / ".data" / "backups", f"{PREFIX}_20260621_060000.db", "full content")
     dest_root = tmp_path / "dest"
     dest = dest_root / ".data" / "backups" / f"{PREFIX}_20260621_060000.db"
     dest.parent.mkdir(parents=True)
@@ -520,9 +527,7 @@ def test_a_failed_copy_leaves_nothing_that_looks_like_a_backup(tmp_path: Path, m
     into 0-byte files that would then be reported "already current" and never
     re-copied."""
     project_root = tmp_path / "project"
-    src = _write_backup(
-        project_root / ".data" / "backups", f"{PREFIX}_20260621_060000.db", "content"
-    )
+    src = _write_backup(project_root / ".data" / "backups", f"{PREFIX}_20260621_060000.db", "content")
     dest_root = tmp_path / "dest"
     dest_root.mkdir()
 
@@ -561,8 +566,7 @@ def test_a_relocated_backup_dir_is_followed_by_both_the_mirror_and_retention(
     backups = dest_root / ".data" / "db_snapshots"
     for name in _daily_backup_names(21):
         _write_backup(backups, name)
-    config = _config_file(tmp_path, dest_root, enabled=True, daily=1, weekly=1,
-                          backup_dir=".data/db_snapshots")
+    config = _config_file(tmp_path, dest_root, enabled=True, daily=1, weekly=1, backup_dir=".data/db_snapshots")
 
     assert bpd.load_categories(config)["database_backups"] == ".data/db_snapshots/**/*"
 
@@ -573,7 +577,9 @@ def test_a_relocated_backup_dir_is_followed_by_both_the_mirror_and_retention(
 
 
 def test_main_refuses_a_destination_that_does_not_exist(
-    tmp_path: Path, monkeypatch, capsys,
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
 ) -> None:
     """The CLI is what the Usage block tells people to run; it had no such guard."""
     missing = tmp_path / "not-mounted"
@@ -591,7 +597,8 @@ def test_main_refuses_a_destination_that_does_not_exist(
 
 
 def test_a_skipped_retention_pass_reaches_an_embedded_caller_as_a_failure(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     """max(sentinel, 0) told a scheduled job `failed: 0` for a pass that never ran.
 
@@ -611,17 +618,19 @@ def test_a_skipped_retention_pass_reaches_an_embedded_caller_as_a_failure(
     monkeypatch.setitem(sys.modules, "scripts.utilities.prune_db_backups", None)
 
     totals = bpd.mirror_enabled_categories(
-        dest_root, execute=True, prune_destination=True,
-        project_root=proj, config_path=config,
+        dest_root,
+        execute=True,
+        prune_destination=True,
+        project_root=proj,
+        config_path=config,
     )
 
-    assert totals["failed"] >= 1, (
-        f"a retention pass that never ran must not report clean: {totals}"
-    )
+    assert totals["failed"] >= 1, f"a retention pass that never ran must not report clean: {totals}"
 
 
 def test_a_malformed_config_does_not_raise_out_of_a_raises_nothing_function(
-    tmp_path: Path, capsys,
+    tmp_path: Path,
+    capsys,
 ) -> None:
     """It raised AFTER the copies had landed, destroying the report of a backup that worked."""
     dest_root = tmp_path / "dest"
@@ -653,12 +662,10 @@ def test_an_absolute_backup_dir_never_aims_retention_at_the_source(tmp_path: Pat
     dest_root = tmp_path / "dest"
     (dest_root / ".data" / "backups").mkdir(parents=True)
 
-    config = _config_file(tmp_path, dest_root, enabled=True, daily=1, weekly=1,
-                          backup_dir=source_backups.as_posix())
+    config = _config_file(tmp_path, dest_root, enabled=True, daily=1, weekly=1, backup_dir=source_backups.as_posix())
 
     before = {p.name for p in source_backups.iterdir()}
-    bpd.prune_destination_backups(dest_root, execute=True, config_path=config,
-                                  enabled_categories=["database_backups"])
+    bpd.prune_destination_backups(dest_root, execute=True, config_path=config, enabled_categories=["database_backups"])
     after = {p.name for p in source_backups.iterdir()}
 
     assert after == before, (
@@ -674,14 +681,16 @@ def test_an_absolute_backup_dir_does_not_build_an_unusable_glob(tmp_path: Path) 
     (dest_root / ".data" / "backups").mkdir(parents=True)
     project = tmp_path / "proj"
     (project / ".data" / "backups").mkdir(parents=True)
-    config = _config_file(tmp_path, dest_root, enabled=True,
-                          backup_dir=(tmp_path / "elsewhere").as_posix())
+    config = _config_file(tmp_path, dest_root, enabled=True, backup_dir=(tmp_path / "elsewhere").as_posix())
 
     pattern = bpd.load_categories(config)["database_backups"]
     assert not Path(pattern).is_absolute(), f"an absolute glob cannot be used: {pattern}"
 
     totals = bpd.mirror_enabled_categories(
-        dest_root, execute=True, prune_destination=True,
-        project_root=project, config_path=config,
+        dest_root,
+        execute=True,
+        prune_destination=True,
+        project_root=project,
+        config_path=config,
     )
     assert isinstance(totals, dict)

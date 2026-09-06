@@ -298,7 +298,9 @@ def _run_derivation(var: str, project_name: str) -> str:
     script = f"$ProjectName = $env:TEST_PROJECT_NAME\n{_derivation_line(var)}\nWrite-Output ${var}"
     out = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True,
+        text=True,
+        timeout=120,
         env={**os.environ, "TEST_PROJECT_NAME": project_name},
     )
     assert out.returncode == 0, f"powershell failed: {out.stderr}"
@@ -312,7 +314,7 @@ win_only = pytest.mark.skipif(sys.platform != "win32", reason="PowerShell deriva
 @pytest.mark.parametrize(
     ("folder", "expected_repo"),
     [
-        ("_NEON dev stack", "_NEON-dev-stack"),          # must match the real remote
+        ("_NEON dev stack", "_NEON-dev-stack"),  # must match the real remote
         ("Horse racing tips", "Horse-racing-tips"),
         ("NEON PowerPoint creator", "NEON-PowerPoint-creator"),
         ("NEON Vision AI (platform)", "NEON-Vision-AI-platform"),  # no '__' or trailing '_'
@@ -367,7 +369,7 @@ def test_bootstrap_accepts_an_existing_empty_directory() -> None:
     content = _bootstrap_text()
     assert "$existing.Count -eq 0" in content, "no empty-directory fast path in the destination guard"
     # The NonInteractive refusal must be reachable only for a NON-empty directory.
-    guard = content[content.index("# 4. Create Target Directory"):]
+    guard = content[content.index("# 4. Create Target Directory") :]
     guard = guard[: guard.index("try {")]
     empty_at = guard.index("$existing.Count -eq 0")
     refuse_at = guard.index("$NonInteractive")
@@ -387,7 +389,7 @@ def test_rollback_never_deletes_a_directory_we_did_not_create() -> None:
     """$createdDir gates the rollback; bootstrapping into the user's own folder must not
     make that folder a deletion candidate if a later step fails."""
     content = _bootstrap_text()
-    guard = content[content.index("# 4. Create Target Directory"):]
+    guard = content[content.index("# 4. Create Target Directory") :]
     guard = guard[: guard.index("try {")]
     # The only assignment of $createdDir = $true is in the branch that actually creates it.
     assert guard.count("$createdDir = $true") == 1

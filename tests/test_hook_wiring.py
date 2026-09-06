@@ -39,13 +39,7 @@ def _write_config(root: Path, command: str, *, directory: str = ".claude") -> Pa
     path = config_dir / "settings.json"
     path.write_text(
         json.dumps(
-            {
-                "hooks": {
-                    "PreToolUse": [
-                        {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": command}]}
-                    ]
-                }
-            },
+            {"hooks": {"PreToolUse": [{"matcher": "Write|Edit", "hooks": [{"type": "command", "command": command}]}]}},
             indent=2,
         ),
         encoding="utf-8",

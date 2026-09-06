@@ -42,9 +42,7 @@ def log_env(tmp_path: Path) -> Iterator[SimpleNamespace]:
     archive_dir = logs_dir / "archive"
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
-        "paths:\n"
-        f'  logs_dir: "{logs_dir.as_posix()}"\n'
-        f'  log_archive_dir: "{archive_dir.as_posix()}"\n',
+        f'paths:\n  logs_dir: "{logs_dir.as_posix()}"\n  log_archive_dir: "{archive_dir.as_posix()}"\n',
         encoding="utf-8",
     )
     try:
@@ -205,9 +203,7 @@ def test_hardware_log_writes_json_snapshots(log_env: SimpleNamespace) -> None:
     logger_mod.stop_hardware_log()
 
 
-def test_hardware_log_noops_without_psutil(
-    log_env: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_hardware_log_noops_without_psutil(log_env: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
     logger_mod.initialize_logging("nopsutil", config_path=log_env.config_path)
     monkeypatch.setattr(logger_mod, "psutil", None)
     monkeypatch.setitem(logger_mod._state, "psutil_warned", False)

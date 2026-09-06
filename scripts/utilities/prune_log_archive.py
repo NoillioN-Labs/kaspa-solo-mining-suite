@@ -119,11 +119,14 @@ def prune(archive_dir: Path, retention_days: int, *, execute: bool) -> dict[str,
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--older-than-days", type=int, default=None,
+        "--older-than-days",
+        type=int,
+        default=None,
         help="Override config.yaml's logging.archive_retention_days for this run.",
     )
     parser.add_argument(
-        "--execute", action="store_true",
+        "--execute",
+        action="store_true",
         help="Actually delete. Without this flag, only reports what would be deleted.",
     )
     args = parser.parse_args()

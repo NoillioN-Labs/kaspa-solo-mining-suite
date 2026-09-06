@@ -131,7 +131,11 @@ def test_the_real_roster_control_the_masters_own_epics_document_parses() -> None
 
 def _story(key: str, epic: int, story: int, status: str) -> sync.StoryInfo:
     return sync.StoryInfo(
-        key=key, epic=epic, story=story, status=status, status_missing=False,
+        key=key,
+        epic=epic,
+        story=story,
+        status=status,
+        status_missing=False,
         path=Path(f"{key}.story.md"),
     )
 
@@ -139,9 +143,7 @@ def _story(key: str, epic: int, story: int, status: str) -> sync.StoryInfo:
 def test_a_latched_wrong_epic_value_is_corrected_and_reported_as_drift() -> None:
     """Defect B: the old code preserved 'done' forever; now it re-derives."""
     stories = [_story("6-1-a", 6, 1, "done"), _story("6-2-b", 6, 2, "done")]
-    ordered, flags = sync.build_development_status(
-        stories, {"epic-6": "done"}, {6: 10}, None
-    )
+    ordered, flags = sync.build_development_status(stories, {"epic-6": "done"}, {6: 10}, None)
     assert ("epic-6", "in-progress") in ordered, "the latched 'done' must be re-derived"
     assert any("Epic status drift" in f and "epic-6" in f for f in flags)
 
@@ -170,7 +172,5 @@ def test_more_story_files_than_roster_entries_is_flagged() -> None:
 def test_retrospective_rows_are_still_preserved_verbatim() -> None:
     """Un-latching applies to epic-N rows ONLY; retros have no derivation source."""
     stories = [_story("6-1-a", 6, 1, "done")]
-    ordered, _flags = sync.build_development_status(
-        stories, {"epic-6-retrospective": "backlog"}, {6: 1}, None
-    )
+    ordered, _flags = sync.build_development_status(stories, {"epic-6-retrospective": "backlog"}, {6: 1}, None)
     assert ("epic-6-retrospective", "backlog") in ordered

@@ -127,8 +127,7 @@ def _registry_development_status() -> dict[str, str]:
     if development_status is None:
         return {}
     assert isinstance(development_status, dict), (
-        f"development_status is a {type(development_status).__name__}, not a mapping, "
-        f"in {path}"
+        f"development_status is a {type(development_status).__name__}, not a mapping, in {path}"
     )
     return {str(key): str(value) for key, value in development_status.items()}
 
@@ -154,9 +153,7 @@ def _registry_story_ids() -> dict[int, set[int]]:
     registry is populated or not.
     """
     development_status = _registry_development_status()
-    generator_rows = sorted(
-        key for key in development_status if sync_sprint_status.STORY_KEY_RE.match(key)
-    )
+    generator_rows = sorted(key for key in development_status if sync_sprint_status.STORY_KEY_RE.match(key))
     by_epic = _registered_story_ids(development_status)
     assert bool(by_epic) == bool(generator_rows), (
         "the generator's story-key pattern and this file's disagree about the registry: "
@@ -188,6 +185,7 @@ def _populated_registry_story_ids() -> dict[int, set[int]]:
 # ---------------------------------------------------------------------------
 # This project's registry
 # ---------------------------------------------------------------------------
+
 
 def test_the_checks_are_looking_at_a_populated_registry() -> None:
     """The population self-check, named so its failure is unmissable.
@@ -251,6 +249,7 @@ def test_known_id_gaps_are_still_actually_gaps() -> None:
 # ---------------------------------------------------------------------------
 # The mechanism itself -- what every clone inherits (AGENTS 11)
 # ---------------------------------------------------------------------------
+
 
 def test_an_interior_hole_is_reported() -> None:
     assert _unexplained_gaps({6: {1, 2, 4, 5}}, {}) == ["6-3"]

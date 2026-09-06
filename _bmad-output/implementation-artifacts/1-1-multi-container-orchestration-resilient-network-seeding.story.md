@@ -1,6 +1,10 @@
+---
+baseline_commit: aefcd8f56e202def331f1c4336b54db4903f1d1e
+---
+
 # Story 1.1: Multi-Container Orchestration & Resilient Network Seeding
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,7 +24,7 @@ So that my node connects to the Kaspa mainnet immediately without 0-peer network
 2. **Official Rusty Kaspad v2.0.1 Integration (`FR-1`, `ARCH-1`):**
    - **Given** the `kaspad` service defined in `docker-compose.yml`
    - **When** the service starts
-   - **Then** it uses official image `kaspanet/rusty-kaspad:v2.0.1` with `kaspad` as the first CLI command argument (ensuring entrypoint `su-exec kaspa "$@"` executes correctly)
+   - **Then** it uses official image `kaspanet/rusty-kaspad:v2.0.1` with `kaspad` as the first CLI command argument (ensuring entrypoint `su-exec kaspa "$@"`)
    - **And** runs with `--rpclisten=0.0.0.0:16110` (no hyphen in rpclisten), `--listen=0.0.0.0:16111`, `--rpclisten-json=0.0.0.0:18110`, `--utxoindex`, and `--disable-upnp`.
 
 3. **Resilient Network Peering & DNS Seeding (`FR-2`):**
@@ -42,26 +46,26 @@ So that my node connects to the Kaspa mainnet immediately without 0-peer network
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Verify and Harden `hooks/pre-start` Permissions (AC: 1)
-  - [ ] Ensure `${APP_DATA_DIR}/kaspad_data` is initialized with UID/GID `1000:1000`
-  - [ ] Ensure `${APP_DATA_DIR}/data/config.yaml` fallback template is populated with `1000:1000` ownership
-  - [ ] Verify script is pure ASCII and executable (`chmod +x`)
+- [x] Task 1: Verify and Harden `hooks/pre-start` Permissions (AC: 1)
+  - [x] Ensure `${APP_DATA_DIR}/kaspad_data` is initialized with UID/GID `1000:1000`
+  - [x] Ensure `${APP_DATA_DIR}/data/config.yaml` fallback template is populated with `1000:1000` ownership
+  - [x] Verify script is pure ASCII and executable (`chmod +x`)
 
-- [ ] Task 2: Validate `docker-compose.yml` Service Configuration (AC: 2, 3, 4)
-  - [ ] Verify `kaspad` service syntax: `image: kaspanet/rusty-kaspad:v2.0.1`, command array starts with `kaspad`
-  - [ ] Verify RPC flags: `--rpclisten=0.0.0.0:16110` (no hyphen), `--rpclisten-json=0.0.0.0:18110`
-  - [ ] Verify peer seeding: `--addpeer=157.90.7.39:16111`, `--addpeer=49.12.171.174:16111`, upstream DNS `1.1.1.1`, `8.8.8.8`
-  - [ ] Verify port mapping: Host `16111:16111` for P2P, Host `55555:5555/tcp` for Stratum Bridge, internal RPC strictly unexposed
-  - [ ] Verify `stop_grace_period` (30s for kaspad, 20s for bridge) to allow clean DB flushing
+- [x] Task 2: Validate `docker-compose.yml` Service Configuration (AC: 2, 3, 4)
+  - [x] Verify `kaspad` service syntax: `image: kaspanet/rusty-kaspad:v2.0.1`, command array starts with `kaspad`
+  - [x] Verify RPC flags: `--rpclisten=0.0.0.0:16110` (no hyphen), `--rpclisten-json=0.0.0.0:18110`
+  - [x] Verify peer seeding: `--addpeer=157.90.7.39:16111`, `--addpeer=49.12.171.174:16111`, upstream DNS `1.1.1.1`, `8.8.8.8`
+  - [x] Verify port mapping: Host `16111:16111` for P2P, Host `55555:5555/tcp` for Stratum Bridge, internal RPC strictly unexposed
+  - [x] Verify `stop_grace_period` (30s for kaspad, 20s for bridge) to allow clean DB flushing
 
-- [ ] Task 3: Umbrel Packaging & Manifest Validation (AC: 5)
-  - [ ] Validate `umbrel-app.yml` manifest 1.1 fields (id, name, version, port, submitter)
-  - [ ] Verify `app_proxy` points to `kaspa-solo-mining_web_1:8080`
-  - [ ] Run automated packaging validation script (`validate_umbrel_package.mjs`)
+- [x] Task 3: Umbrel Packaging & Manifest Validation (AC: 5)
+  - [x] Validate `umbrel-app.yml` manifest 1.1 fields (id, name, version, port, submitter)
+  - [x] Verify `app_proxy` points to `kaspa-solo-mining_web_1:8080`
+  - [x] Run automated packaging validation script (`validate_umbrel_package.mjs`)
 
-- [ ] Task 4: End-to-End Orchestration Verification (AC: 1-5)
-  - [ ] Validate syntax with `docker compose config`
-  - [ ] Verify clean startup sequence: `kaspad` boots, peers connect > 0 within 60s, `bridge` connects to `kaspad:16110`
+- [x] Task 4: End-to-End Orchestration Verification (AC: 1-5)
+  - [x] Validate syntax with `docker compose config`
+  - [x] Verify clean startup sequence: `kaspad` boots, peers connect > 0 within 60s, `bridge` connects to `kaspad:16110`
 
 ## Dev Notes
 

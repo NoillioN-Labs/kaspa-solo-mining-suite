@@ -94,9 +94,7 @@ WALK_EXCLUDE_DIRS: frozenset[str] = frozenset(
     }
 )
 # -ArgumentList values that interpolate a variable without wrapping it in quotes.
-UNQUOTED_ARGLIST_PATTERN: re.Pattern[str] = re.compile(
-    r"-ArgumentList\s+(?P<args>[^\r\n#]+)", re.IGNORECASE
-)
+UNQUOTED_ARGLIST_PATTERN: re.Pattern[str] = re.compile(r"-ArgumentList\s+(?P<args>[^\r\n#]+)", re.IGNORECASE)
 QUOTED_VAR_PATTERN: re.Pattern[str] = re.compile(r"""(['"]).*?\$.*?\1|-f\s*\$""")
 BARE_VAR_PATTERN: re.Pattern[str] = re.compile(r"\$[A-Za-z_][\w.:\[\]]*")
 WMIC_PATTERN: re.Pattern[str] = re.compile(r"\bwmic\b", re.IGNORECASE)
@@ -114,9 +112,7 @@ TEMPFILE_NO_DIR_PATTERN: re.Pattern[str] = re.compile(
 # a migration snippet did `Copy-Item -LiteralPath "$vendor\*.md"` and then renamed the source
 # away, i.e. copy nothing -> destroy the original -> point at the void, all reporting success.
 # Only the IMMEDIATE argument is inspected: `-LiteralPath $dir -Filter '*.md'` is correct.
-LITERALPATH_ARG_PATTERN: re.Pattern[str] = re.compile(
-    r"-LiteralPath\s+(?P<arg>\"[^\"]*\"|'[^']*'|\S+)", re.IGNORECASE
-)
+LITERALPATH_ARG_PATTERN: re.Pattern[str] = re.compile(r"-LiteralPath\s+(?P<arg>\"[^\"]*\"|'[^']*'|\S+)", re.IGNORECASE)
 NPM_SHIM_PATTERN: re.Pattern[str] = re.compile(r"(?<!\w)(npx\s|\bvite\.cmd|\btsc\.cmd|\bvitest\.cmd)")
 REGISTER_ROW_PATTERN: re.Pattern[str] = re.compile(r"\[(\d{4})\]\(([^)]+)\)")
 FILENAME_STAMP_PATTERN: re.Pattern[str] = re.compile(r"_(\d{6})_(\d{4})")
@@ -384,8 +380,7 @@ def check_absorbed_packs(root: Path) -> CheckResult:
         if all(name in ledger for ledger in ledgers):
             result.add(
                 SEVERITY_WARNING,
-                f"recorded by all {len(fleet)} fleet ledgers - prunable "
-                "(agent runs: apply_upgrade.py prune)",
+                f"recorded by all {len(fleet)} fleet ledgers - prunable (agent runs: apply_upgrade.py prune)",
                 path,
             )
     return result
@@ -1080,10 +1075,7 @@ def check_sprint_drift(root: Path) -> CheckResult:
         return result
     existing = registry.get("development_status")
     existing = existing if isinstance(existing, dict) else {}
-    registry_stories = {
-        str(k): str(v) for k, v in existing.items()
-        if sync_sprint_status.STORY_KEY_RE.match(str(k))
-    }
+    registry_stories = {str(k): str(v) for k, v in existing.items() if sync_sprint_status.STORY_KEY_RE.match(str(k))}
 
     disk_keys = {s.key for s in stories}
     for story in stories:
@@ -1147,9 +1139,7 @@ def check_story_lifecycle(root: Path) -> CheckResult:
         return result
 
     exempt_raw = _config_section(root, "governance").get("review_artifact_exempt")
-    exempt: dict[str, str] = (
-        {str(k): str(v) for k, v in exempt_raw.items()} if isinstance(exempt_raw, dict) else {}
-    )
+    exempt: dict[str, str] = {str(k): str(v) for k, v in exempt_raw.items()} if isinstance(exempt_raw, dict) else {}
 
     review_dir = root / "docs" / REVIEW_DIR_NAME
     checked = 0
@@ -1163,11 +1153,7 @@ def check_story_lifecycle(root: Path) -> CheckResult:
                 continue
             pattern = f"story-{story_id}-review*.md"
             found = list(review_dir.glob(pattern)) if review_dir.is_dir() else []
-            found += (
-                list((review_dir / "archive").glob(pattern))
-                if (review_dir / "archive").is_dir()
-                else []
-            )
+            found += list((review_dir / "archive").glob(pattern)) if (review_dir / "archive").is_dir() else []
             if not found:
                 result.add(
                     SEVERITY_ERROR,
@@ -1236,7 +1222,8 @@ def check_frontend_testing(root: Path) -> CheckResult:
             package_json,
         )
     spec_files = [
-        p for pattern in ("e2e/**/*.spec.*", "tests/e2e/**/*.spec.*", "**/*.e2e.spec.*")
+        p
+        for pattern in ("e2e/**/*.spec.*", "tests/e2e/**/*.spec.*", "**/*.e2e.spec.*")
         for base in (ui_root, root)
         for p in base.glob(pattern)
         if p.is_file()
@@ -1251,8 +1238,7 @@ def check_frontend_testing(root: Path) -> CheckResult:
     if "vitest" not in package_text and not _exists_any("vitest.config.*"):
         result.add(
             SEVERITY_ERROR,
-            "web frontend has no vitest wiring - the unit/component base of the pyramid "
-            "(AGENTS 5.7)",
+            "web frontend has no vitest wiring - the unit/component base of the pyramid (AGENTS 5.7)",
             package_json,
         )
     coverage = _config_section(root, "testing").get("coverage")
@@ -1565,9 +1551,7 @@ def check_windows_execution_traps(root: Path) -> CheckResult:
             )
 
     if pyproject.is_file():
-        uses_zoneinfo = any(
-            "zoneinfo" in read_text(path) for path in walk_source_files(root, (".py",))
-        )
+        uses_zoneinfo = any("zoneinfo" in read_text(path) for path in walk_source_files(root, (".py",)))
         if uses_zoneinfo and "tzdata" not in read_text(pyproject):
             result.add(
                 SEVERITY_ERROR,
@@ -1617,8 +1601,7 @@ def check_architecture_map(root: Path) -> CheckResult:
     if not map_path.is_file():
         result.add(
             SEVERITY_WARNING,
-            "no architecture map - the map you read to orient before touching "
-            "unfamiliar code does not exist",
+            "no architecture map - the map you read to orient before touching unfamiliar code does not exist",
             map_path,
         )
         return result
@@ -1643,8 +1626,7 @@ def check_architecture_map(root: Path) -> CheckResult:
     if not match:
         result.add(
             SEVERITY_WARNING,
-            "no `last_reviewed: YYYY-MM-DD` in the frontmatter - nothing asserts this "
-            "map still matches reality",
+            "no `last_reviewed: YYYY-MM-DD` in the frontmatter - nothing asserts this map still matches reality",
             map_path,
         )
         return result
@@ -1726,7 +1708,7 @@ def check_test_temp_root(root: Path) -> CheckResult:
                 total += path.stat().st_size
         except OSError:
             continue  # a file vanishing mid-walk is normal in a temp tree
-    used_gb = total / (1024 ** 3)
+    used_gb = total / (1024**3)
     if used_gb > max_gb:
         result.add(
             SEVERITY_WARNING,
@@ -1797,8 +1779,7 @@ def check_coverage_wiring(root: Path) -> CheckResult:
         if not baseline.is_file():
             result.add(
                 SEVERITY_WARNING,
-                f"testing.coverage.baseline_file -> '{baseline_rel}' does not exist (the ratchet "
-                "floor is untracked)",
+                f"testing.coverage.baseline_file -> '{baseline_rel}' does not exist (the ratchet floor is untracked)",
                 baseline,
             )
     return result
@@ -1837,11 +1818,7 @@ def check_memory_cache(root: Path) -> CheckResult:
 
     # Run the checks
     lint_results = memory_lint.run_checks(
-        repo_root=root,
-        memory_dir=memory_dir,
-        registry=registry,
-        max_page_bytes=max_bytes,
-        config=config
+        repo_root=root, memory_dir=memory_dir, registry=registry, max_page_bytes=max_bytes, config=config
     )
 
     for lr in lint_results:
@@ -1852,23 +1829,22 @@ def check_memory_cache(root: Path) -> CheckResult:
         # produced (AGENTS 6): the "does this page cite a real skill?" check had simply
         # stopped running, and nothing said so.
         if getattr(lr, "skipped", False):
-            result.findings.append(Finding(
-                check=f"memory-{lr.name}",
-                severity=SEVERITY_WARNING,
-                message=(
-                    f"{lr.title}: SKIPPED -- {lr.skip_reason or 'no reason given'} "
-                    "(a check that did not run is not a check that passed)"
-                ),
-                path=rel_path(memory_dir),
-            ))
+            result.findings.append(
+                Finding(
+                    check=f"memory-{lr.name}",
+                    severity=SEVERITY_WARNING,
+                    message=(
+                        f"{lr.title}: SKIPPED -- {lr.skip_reason or 'no reason given'} "
+                        "(a check that did not run is not a check that passed)"
+                    ),
+                    path=rel_path(memory_dir),
+                )
+            )
             continue
         for f in lr.findings:
-            result.findings.append(Finding(
-                check=f"memory-{lr.name}",
-                severity=f.severity,
-                message=f"{lr.title}: {f.message}",
-                path=f.path
-            ))
+            result.findings.append(
+                Finding(check=f"memory-{lr.name}", severity=f.severity, message=f"{lr.title}: {f.message}", path=f.path)
+            )
 
     return result
 

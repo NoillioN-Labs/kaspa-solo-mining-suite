@@ -35,9 +35,7 @@ from typing import Any, NamedTuple
 
 import yaml
 
-STORY_FILE_RE: re.Pattern[str] = re.compile(
-    r"^(?P<epic>\d+)-(?P<story>\d+)-(?P<slug>.+)\.story\.md$"
-)
+STORY_FILE_RE: re.Pattern[str] = re.compile(r"^(?P<epic>\d+)-(?P<story>\d+)-(?P<slug>.+)\.story\.md$")
 # Matches "Status: done", "**Status:** done", etc. at the start of a line.
 STATUS_LINE_RE: re.Pattern[str] = re.compile(
     r"^\*{0,2}Status\*{0,2}\s*:\s*(?P<value>.+?)\s*$",
@@ -46,9 +44,7 @@ STATUS_LINE_RE: re.Pattern[str] = re.compile(
 # A story heading in the epics document: "### Story 1.2: <title>" (three or four
 # hashes -- both depths occur in real epics documents; NEVER widen to #{3,}, which
 # would also match deeper headings that are not stories).
-EPIC_ROSTER_RE: re.Pattern[str] = re.compile(
-    r"^#{3,4}\s+Story\s+(?P<epic>\d+)[.-](?P<story>\d+)\s*:", re.MULTILINE
-)
+EPIC_ROSTER_RE: re.Pattern[str] = re.compile(r"^#{3,4}\s+Story\s+(?P<epic>\d+)[.-](?P<story>\d+)\s*:", re.MULTILINE)
 EPIC_KEY_RE: re.Pattern[str] = re.compile(r"^epic-(?P<epic>\d+)$")
 RETRO_KEY_RE: re.Pattern[str] = re.compile(r"^epic-(?P<epic>\d+)-retrospective$")
 STORY_KEY_RE: re.Pattern[str] = re.compile(r"^\d+-\d+-.+$")
@@ -125,22 +121,17 @@ def collect_stories(directory: Path) -> tuple[list[StoryInfo], list[str]]:
     for path in sorted(directory.glob("*.story.md"), key=lambda p: p.name.lower()):
         match = STORY_FILE_RE.match(path.name)
         if not match:
-            warnings.append(
-                f"Story file does not match <epic>-<story>-<slug>.story.md: {path.name}"
-            )
+            warnings.append(f"Story file does not match <epic>-<story>-<slug>.story.md: {path.name}")
             continue
         text = path.read_text(encoding="utf-8")
         status = parse_story_status(text)
         status_missing = status is None
         if status_missing:
             status = DEFAULT_STATUS
-            warnings.append(
-                f"No 'Status:' field in {path.name}; assuming '{DEFAULT_STATUS}'."
-            )
+            warnings.append(f"No 'Status:' field in {path.name}; assuming '{DEFAULT_STATUS}'.")
         elif status not in VALID_STATUSES:
             warnings.append(
-                f"Unrecognised status '{status}' in {path.name} "
-                f"(expected one of: {', '.join(VALID_STATUSES)})."
+                f"Unrecognised status '{status}' in {path.name} (expected one of: {', '.join(VALID_STATUSES)})."
             )
         key = path.name[: -len(".story.md")]
         stories.append(
@@ -228,7 +219,9 @@ def derive_epic_status(story_statuses: list[str], roster_size: int | None = None
 
 
 def build_development_status(
-    stories: list[StoryInfo], existing: dict[str, Any], roster: dict[int, int] | None = None,
+    stories: list[StoryInfo],
+    existing: dict[str, Any],
+    roster: dict[int, int] | None = None,
     roster_problem: str | None = None,
 ) -> tuple[list[tuple[str, str]], list[str]]:
     """Merge disk reality with the existing registry.
@@ -283,13 +276,10 @@ def build_development_status(
             flags.append(f"Registry entry has no story file on disk (dropped): {key}")
     for story in stories:
         if story.key not in existing_stories:
-            flags.append(
-                f"Story file on disk was unregistered (added): {story.key} = {story.status}"
-            )
+            flags.append(f"Story file on disk was unregistered (added): {story.key} = {story.status}")
         elif existing_stories[story.key] != story.status:
             flags.append(
-                f"Status drift for {story.key}: registry '{existing_stories[story.key]}' "
-                f"-> disk '{story.status}'"
+                f"Status drift for {story.key}: registry '{existing_stories[story.key]}' -> disk '{story.status}'"
             )
 
     ordered: list[tuple[str, str]] = []
@@ -388,23 +378,16 @@ def cmd_sync(args: argparse.Namespace) -> int:
     project = read_project_name(root)
     if project is None:
         project = str(registry.get("project", "UNKNOWN"))
-        print(
-            "[WARN] Could not read core.project_name from _bmad/config.toml; "
-            f"keeping '{project}'."
-        )
+        print(f"[WARN] Could not read core.project_name from _bmad/config.toml; keeping '{project}'.")
 
     now = utc_now_stamp()
     generated = format_timestamp(registry.get("generated", now))
     project_key = str(registry.get("project_key", "NOKEY"))
     tracking_system = str(registry.get("tracking_system", "file-system"))
-    story_location = str(
-        registry.get("story_location", "_bmad-output/implementation-artifacts")
-    )
+    story_location = str(registry.get("story_location", "_bmad-output/implementation-artifacts"))
 
     roster, roster_problem = epic_roster(root)
-    development_status, flags = build_development_status(
-        stories, existing_ds, roster or None, roster_problem
-    )
+    development_status, flags = build_development_status(stories, existing_ds, roster or None, roster_problem)
     for flag in flags:
         print(f"[INFO] {flag}")
 
@@ -422,10 +405,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
         development_status=development_status,
     )
 
-    print(
-        f"Registry: {len(stories)} story file(s) on disk, "
-        f"{len(development_status)} development_status entries."
-    )
+    print(f"Registry: {len(stories)} story file(s) on disk, {len(development_status)} development_status entries.")
     if args.dry_run:
         print(f"[DRY-RUN] Would write {status_path}:")
         print("-" * 60)
@@ -474,9 +454,7 @@ def cmd_check(_args: argparse.Namespace) -> int:
     existing_ds = registry.get("development_status")
     if not isinstance(existing_ds, dict):
         existing_ds = {}
-    registry_stories: dict[str, str] = {
-        str(k): str(v) for k, v in existing_ds.items() if STORY_KEY_RE.match(str(k))
-    }
+    registry_stories: dict[str, str] = {str(k): str(v) for k, v in existing_ds.items() if STORY_KEY_RE.match(str(k))}
 
     for story in stories:
         if story.key not in registry_stories:
@@ -507,9 +485,7 @@ def cmd_check(_args: argparse.Namespace) -> int:
         epic = int(epic_match.group("epic"))
         derived = derive_epic_status(stories_by_epic.get(epic, []), roster.get(epic))
         if str(value) != derived:
-            drift.append(
-                f"Stale epic status for {key}: registry '{value}' vs derived '{derived}'"
-            )
+            drift.append(f"Stale epic status for {key}: registry '{value}' vs derived '{derived}'")
 
     if drift:
         for line in drift:
@@ -528,21 +504,13 @@ def cmd_check(_args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Derive sprint-status.yaml from on-disk story files."
-    )
+    parser = argparse.ArgumentParser(description="Derive sprint-status.yaml from on-disk story files.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    sync_parser = subparsers.add_parser(
-        "sync", help="Regenerate sprint-status.yaml from *.story.md files."
-    )
-    sync_parser.add_argument(
-        "--dry-run", action="store_true", help="Print the would-be file without writing."
-    )
+    sync_parser = subparsers.add_parser("sync", help="Regenerate sprint-status.yaml from *.story.md files.")
+    sync_parser.add_argument("--dry-run", action="store_true", help="Print the would-be file without writing.")
 
-    subparsers.add_parser(
-        "check", help="Exit 1 if sprint-status.yaml disagrees with disk (for CI/lint)."
-    )
+    subparsers.add_parser("check", help="Exit 1 if sprint-status.yaml disagrees with disk (for CI/lint).")
 
     args = parser.parse_args()
     handlers = {"sync": cmd_sync, "check": cmd_check}

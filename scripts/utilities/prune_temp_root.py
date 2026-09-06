@@ -172,11 +172,14 @@ def prune(temp_root: Path, max_gb: float, *, execute: bool) -> dict[str, int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--max-gb", type=float, default=None,
+        "--max-gb",
+        type=float,
+        default=None,
         help="Override config.yaml's testing.temp_root_max_gb for this run.",
     )
     parser.add_argument(
-        "--execute", action="store_true",
+        "--execute",
+        action="store_true",
         help="Actually delete. Without this flag, only reports what would be deleted.",
     )
     args = parser.parse_args()

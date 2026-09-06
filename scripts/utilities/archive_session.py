@@ -19,6 +19,7 @@ def get_project_root() -> Path:
     """Return the absolute path of the project root."""
     return Path(__file__).resolve().parent.parent.parent
 
+
 def candidate_brain_dirs() -> list[Path]:
     """Return possible IDE 'brain' directories, most-likely first.
 
@@ -27,6 +28,7 @@ def candidate_brain_dirs() -> list[Path]:
     or install layout needs to be supported.
     """
     return [Path.home() / ".gemini" / "antigravity-ide" / "brain"]
+
 
 def transcript_references_project(transcript_path: Path, project_name: str) -> bool:
     """Return True iff the transcript's content mentions the project folder name.
@@ -45,6 +47,7 @@ def transcript_references_project(transcript_path: Path, project_name: str) -> b
     except OSError as exc:
         print(f"[WARN] Could not read transcript {transcript_path}: {exc}")
     return False
+
 
 #: The header line every chat backup writes (see generate_chat_backup). Matching on
 #: this, ANCHORED, is what makes archived-ID detection an identity test rather than a
@@ -105,9 +108,7 @@ def archived_conversation_ids(project_root: Path) -> set[str]:
     return set(archived_conversation_times(project_root))
 
 
-def transcript_continued_since_archive(
-    transcript_path: Path, conv_id: str, project_root: Path
-) -> bool:
+def transcript_continued_since_archive(transcript_path: Path, conv_id: str, project_root: Path) -> bool:
     """True when this conversation was archived AND has been written to since.
 
     "Already archived" is not "fully archived". A session that keeps working after
@@ -131,9 +132,7 @@ def transcript_continued_since_archive(
     return modified > archived_at
 
 
-def transcript_already_archived(
-    conv_id: str, project_root: Path, transcript_path: Path | None = None
-) -> bool:
+def transcript_already_archived(conv_id: str, project_root: Path, transcript_path: Path | None = None) -> bool:
     """Return True iff this conversation is archived AND has not grown since.
 
     The IDE brain directory keeps old conversations indefinitely, so the newest
@@ -159,15 +158,14 @@ def transcript_already_archived(
         return False
     if conv_id not in archived_conversation_ids(project_root):
         return False
-    if transcript_path is not None and transcript_continued_since_archive(
-        transcript_path, conv_id, project_root
-    ):
+    if transcript_path is not None and transcript_continued_since_archive(transcript_path, conv_id, project_root):
         print(
             f"[INFO] Conversation {conv_id} has grown since it was last archived; "
             "re-archiving so the tail is not stranded."
         )
         return False
     return True
+
 
 def discover_sibling_projects(project_root: Path) -> list[str]:
     """Folder names of sibling fleet projects (contain AGENTS.md), for transcript attribution."""
@@ -181,6 +179,7 @@ def discover_sibling_projects(project_root: Path) -> list[str]:
     except OSError as exc:
         print(f"[WARN] Could not scan sibling projects: {exc}")
     return siblings
+
 
 def transcript_belongs_elsewhere(transcript_path: Path, project_name: str, sibling_names: list[str]) -> str | None:
     """Return the sibling project this transcript most likely belongs to, or None.
@@ -201,6 +200,7 @@ def transcript_belongs_elsewhere(transcript_path: Path, project_name: str, sibli
         if text.count(sibling.lower()) > own_count:
             return sibling
     return None
+
 
 def find_active_transcript(project_name: str, allow_unmatched: bool = False) -> Path | None:
     """Locate the most recently modified transcript.jsonl that references this project.
@@ -263,6 +263,7 @@ def find_active_transcript(project_name: str, allow_unmatched: bool = False) -> 
         "correct file, or --allow-unmatched to accept the newest transcript."
     )
     return None
+
 
 def claude_project_dirs() -> list[Path]:
     """Return the Claude Code per-project transcript directories, if present.
@@ -392,9 +393,7 @@ def find_claude_transcript(project_root: Path) -> Path | None:
     Conversations already present in the chat archive are skipped (idempotent).
     """
     exact = session_transcript_from_env(project_root)
-    if exact is not None and not transcript_already_archived(
-        exact.stem, project_root, exact
-    ):
+    if exact is not None and not transcript_already_archived(exact.stem, project_root, exact):
         return exact
 
     candidates: list[str] = []
@@ -484,8 +483,7 @@ def _compile_claude(transcript_path: Path) -> tuple[str, int]:
             role = (ev.get("message") or {}).get("role")
             # Drop slash-command wrappers and injected caveats — not user prose.
             if role == "user" and (
-                text.lstrip().startswith(("<local-command", "<command-name", "Caveat:"))
-                or "<command-name>" in text
+                text.lstrip().startswith(("<local-command", "<command-name", "Caveat:")) or "<command-name>" in text
             ):
                 continue
             heading = "User" if role == "user" else "Assistant"
@@ -595,6 +593,7 @@ def generate_chat_backup(
     print(f"[OK] Chat backup created: {dest_path.name}")
     return dest_path
 
+
 def archive_root_logs(project_root: Path, stamp: str, dry_run: bool = False) -> list[str]:
     """Scan the project root for hermes_stderr.log and hermes_stdout.log and move them to logs/archive/.
 
@@ -623,6 +622,7 @@ def archive_root_logs(project_root: Path, stamp: str, dry_run: bool = False) -> 
                 print(f"[WARN] Could not move {name}: {e}")
     return moved
 
+
 @dataclass
 class RunOutcomes:
     """Actual results of an archiving run.
@@ -631,6 +631,7 @@ class RunOutcomes:
     logs describe what really happened (including skips and failures) instead
     of pre-written claims of success.
     """
+
     chat_backup_result: str = "Not attempted"
     chat_backup_created: bool = False
     root_logs_moved: list[str] = field(default_factory=list)
@@ -696,9 +697,7 @@ def place_session_log(
 def create_session_log(dest_path: Path, stamp: str, outcomes: RunOutcomes) -> None:
     """Write the session log describing the outcomes of the run just performed."""
     root_logs_result = (
-        "Moved: " + ", ".join(outcomes.root_logs_moved)
-        if outcomes.root_logs_moved
-        else "No root log files present"
+        "Moved: " + ", ".join(outcomes.root_logs_moved) if outcomes.root_logs_moved else "No root log files present"
     )
     sweep_result = f"{outcomes.swept_moved} file(s) archived, {outcomes.swept_failed} failure(s)"
     ran_clean = (
@@ -754,6 +753,7 @@ Archive the active session chat history, rotate/sweep any root telemetry files (
         f.write(content)
     print(f"[OK] Session log created: {dest_path.name}")
 
+
 def create_action_log(dest_path: Path, stamp: str, outcomes: RunOutcomes) -> None:
     """Write the action log describing the outcomes of the run just performed."""
     root_logs_result = (
@@ -783,6 +783,7 @@ def create_action_log(dest_path: Path, stamp: str, outcomes: RunOutcomes) -> Non
         f.write(content)
     print(f"[OK] Action log created: {dest_path.name}")
 
+
 def run_git_add(project_root: Path, file_paths: list[Path]) -> bool:
     """Run git add on the specified paths relative to project root, skipping gitignored files.
 
@@ -808,11 +809,7 @@ def run_git_add(project_root: Path, file_paths: list[Path]) -> bool:
             continue
         try:
             # git check-ignore returns 0 if the path is ignored, 1 if not ignored.
-            res = subprocess.run(
-                ["git", "check-ignore", "-q", p_str],
-                cwd=str(project_root),
-                check=False
-            )
+            res = subprocess.run(["git", "check-ignore", "-q", p_str], cwd=str(project_root), check=False)
             # M-19: 0 is ignored, 1 is not ignored, 128 is a fatal error
             if res.returncode == 1:
                 valid_paths.append(p_str)
@@ -834,6 +831,7 @@ def run_git_add(project_root: Path, file_paths: list[Path]) -> bool:
         print(f"[WARN] Git add failed: {e}")
         return False
 
+
 def archive_all_folders_with_archives(
     project_root: Path,
     current_stamp: str,
@@ -851,7 +849,7 @@ def archive_all_folders_with_archives(
     Returns (moved_count, failed_count); on dry runs moved_count counts planned moves.
     """
     print("\n[INFO] Scanning for 'archive' directories to tidy up...")
-    timestamp_pattern = re.compile(r'[-_](?P<yymmdd>\d{6})_(?P<hhmm>\d{4})')
+    timestamp_pattern = re.compile(r"[-_](?P<yymmdd>\d{6})_(?P<hhmm>\d{4})")
 
     # The NEWEST next-session workplan stays where the next session will look for
     # it (owner comment C2, 2026-08-29): archiving happens at the exact moment the
@@ -872,12 +870,20 @@ def archive_all_folders_with_archives(
     # project would let the sweep MOVE client/data files that happen to match a
     # timestamp pattern (e.g. `report_260101_1200.csv`) into an `archive/`
     # subfolder - a data-integrity hazard against client_files/ and .data/ (C-5).
-    allowed_roots = ['docs', 'scripts', 'logs']
+    allowed_roots = ["docs", "scripts", "logs"]
 
     # Defence-in-depth: never descend into these even if reached transitively.
     exclude_dirs = {
-        '.git', '.venv', '.venv-linux', '__pycache__', '.pytest_cache',
-        'client_files', '.data', 'node_modules', 'frontend', 'backend',
+        ".git",
+        ".venv",
+        ".venv-linux",
+        "__pycache__",
+        ".pytest_cache",
+        "client_files",
+        ".data",
+        "node_modules",
+        "frontend",
+        "backend",
         # The pack library has its OWN lifecycle: presence in docs/upgrades/ means
         # pending work, and only `record`/`prune` may end it (AGENTS 6). The library
         # was safe from this sweep only while it happened to lack an archive/
@@ -885,12 +891,10 @@ def archive_all_folders_with_archives(
         # dry run showed the sweep about to move ALL 27 timestamped packs out of the
         # library - which would read to every tool as "nothing pending" while the
         # fleet was mid-application. Excluded by name, not by luck.
-        'upgrades',
+        "upgrades",
     }
 
-    walk_targets = [
-        project_root / r for r in allowed_roots if (project_root / r).is_dir()
-    ]
+    walk_targets = [project_root / r for r in allowed_roots if (project_root / r).is_dir()]
 
     moved_count = 0
     failed_count = 0
@@ -899,15 +903,15 @@ def archive_all_folders_with_archives(
             # Filter out excluded directories in-place to prevent walking them
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
 
-            if 'archive' not in dirs:
+            if "archive" not in dirs:
                 continue
             parent_dir = Path(root)
-            archive_dir = parent_dir / 'archive'
+            archive_dir = parent_dir / "archive"
             print(f"  Checking parent folder: {parent_dir.relative_to(project_root)}")
 
             # List files in the parent folder
             for item in parent_dir.iterdir():
-                if item.is_file() and not item.name.startswith('.'):
+                if item.is_file() and not item.name.startswith("."):
                     if item in keep_paths:
                         continue  # announced above; the next session needs it in place
                     match = timestamp_pattern.search(item.name)
@@ -937,15 +941,19 @@ def archive_all_folders_with_archives(
                                 print(f"    [WARN] Failed to move {item.name}: {e}")
     return moved_count, failed_count
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Standardized archiving utility for chats and logs.")
     parser.add_argument("--timestamp", type=str, help="Override default timestamp (YYMMDD_HHMM)")
     parser.add_argument("--dry-run", action="store_true", help="Preview moves without acting")
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     parser.add_argument(
-        "--keep", action="append", default=[], metavar="GLOB",
+        "--keep",
+        action="append",
+        default=[],
+        metavar="GLOB",
         help="Root-relative glob(s) the sweep must leave in place (the newest "
-             "docs/workplan_*.md is always kept automatically)",
+        "docs/workplan_*.md is always kept automatically)",
     )
     parser.add_argument(
         "--transcript",
@@ -965,10 +973,7 @@ def main() -> None:
         # the sweep's "current stamp" comparison, causing every timestamped file
         # to be treated as not-current and archived (M-18).
         if not re.fullmatch(r"\d{6}_\d{4}", args.timestamp):
-            print(
-                f"[ERROR] Invalid --timestamp '{args.timestamp}'. "
-                "Expected format YYMMDD_HHMM (e.g. 260626_2000)."
-            )
+            print(f"[ERROR] Invalid --timestamp '{args.timestamp}'. Expected format YYMMDD_HHMM (e.g. 260626_2000).")
             return
         stamp = args.timestamp
     else:
@@ -996,7 +1001,9 @@ def main() -> None:
     # a confirmation that does not name the conversation is a rubber stamp, and this
     # is the only gate a human actually sees (agents pass --yes).
     if not args.dry_run and not args.yes:
-        print("\n[WARNING] This operation will archive logs and chats, and sweep timestamped files into archive folders.")
+        print(
+            "\n[WARNING] This operation will archive logs and chats, and sweep timestamped files into archive folders."
+        )
         if transcript_path is None:
             print(f"          No transcript will be compiled ({transcript_skip_reason}).")
         else:
@@ -1066,9 +1073,7 @@ def main() -> None:
     from prune_log_archive import _load_retention_days, prune  # noqa: E402
 
     retention_days = _load_retention_days(project_root / "config.yaml")
-    prune_result = prune(
-        project_root / "logs" / "archive", retention_days, execute=not args.dry_run
-    )
+    prune_result = prune(project_root / "logs" / "archive", retention_days, execute=not args.dry_run)
     outcomes.pruned_candidates = prune_result["candidates"]
     outcomes.pruned_deleted = prune_result["deleted"]
     if prune_result["candidates"]:
@@ -1088,10 +1093,7 @@ def main() -> None:
     temp_result = prune_temp(temp_root, temp_max_gb, execute=not args.dry_run)
     if temp_result["deleted"]:
         verb = "Deleted" if not args.dry_run else "[DRY-RUN] Would delete"
-        print(
-            f"{verb} {temp_result['deleted']} oldest entr(y/ies) from {temp_root} "
-            f"to bring it under {temp_max_gb} GB"
-        )
+        print(f"{verb} {temp_result['deleted']} oldest entr(y/ies) from {temp_root} to bring it under {temp_max_gb} GB")
 
     if args.dry_run:
         print("[DRY-RUN] Would run git add for staged files.")
@@ -1111,7 +1113,8 @@ def main() -> None:
 
     print("\nNext steps:")
     print(f'  git commit -m "docs: auto-save - archive chats and logs for session {stamp}"')
-    print('  git push')
+    print("  git push")
+
 
 if __name__ == "__main__":
     main()

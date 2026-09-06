@@ -99,14 +99,18 @@ def test_missing_report_fails_loudly_only_when_gating(tmp_path: Path, monkeypatc
     """A missing coverage report is a WARN+exit0 in advisory, ERROR+exit1 when gating."""
     monkeypatch.setattr(coverage_gate, "REPO_ROOT", tmp_path)
 
-    monkeypatch.setattr(coverage_gate, "load_coverage_config",
-                        lambda root: {**coverage_gate.DEFAULT_CONFIG, "mode": "advisory",
-                                      "coverage_xml": "missing.xml"})
+    monkeypatch.setattr(
+        coverage_gate,
+        "load_coverage_config",
+        lambda root: {**coverage_gate.DEFAULT_CONFIG, "mode": "advisory", "coverage_xml": "missing.xml"},
+    )
     assert coverage_gate.main([]) == 0  # advisory never blocks
 
-    monkeypatch.setattr(coverage_gate, "load_coverage_config",
-                        lambda root: {**coverage_gate.DEFAULT_CONFIG, "mode": "gating",
-                                      "coverage_xml": "missing.xml"})
+    monkeypatch.setattr(
+        coverage_gate,
+        "load_coverage_config",
+        lambda root: {**coverage_gate.DEFAULT_CONFIG, "mode": "gating", "coverage_xml": "missing.xml"},
+    )
     assert coverage_gate.main([]) == 1  # gating fails loudly on a missing report
 
 
@@ -114,12 +118,18 @@ def test_uncovered_diff_lines_do_not_block_in_advisory(tmp_path: Path, monkeypat
     """New uncovered lines are a would-fail, but advisory mode still exits 0."""
     _write_report(tmp_path)
     monkeypatch.setattr(coverage_gate, "REPO_ROOT", tmp_path)
-    monkeypatch.setattr(coverage_gate, "load_coverage_config",
-                        lambda root: {**coverage_gate.DEFAULT_CONFIG, "mode": "advisory",
-                                      "coverage_xml": "coverage.xml", "min_diff_coverage_pct": 90.0})
+    monkeypatch.setattr(
+        coverage_gate,
+        "load_coverage_config",
+        lambda root: {
+            **coverage_gate.DEFAULT_CONFIG,
+            "mode": "advisory",
+            "coverage_xml": "coverage.xml",
+            "min_diff_coverage_pct": 90.0,
+        },
+    )
     # Force a diff with an uncovered executable line.
-    monkeypatch.setattr(coverage_gate, "git_added_lines",
-                        lambda root, base: {"backend/core/logger.py": {11}})
+    monkeypatch.setattr(coverage_gate, "git_added_lines", lambda root, base: {"backend/core/logger.py": {11}})
     config = coverage_gate.load_coverage_config(tmp_path)
     result = coverage_gate.evaluate(tmp_path, config, coverage_gate.parse_cobertura(tmp_path / "coverage.xml"))
     assert result.failed is True  # it WOULD fail
@@ -129,11 +139,17 @@ def test_uncovered_diff_lines_do_not_block_in_advisory(tmp_path: Path, monkeypat
 def test_gating_blocks_on_uncovered_diff(tmp_path: Path, monkeypatch) -> None:
     _write_report(tmp_path)
     monkeypatch.setattr(coverage_gate, "REPO_ROOT", tmp_path)
-    monkeypatch.setattr(coverage_gate, "load_coverage_config",
-                        lambda root: {**coverage_gate.DEFAULT_CONFIG, "mode": "gating",
-                                      "coverage_xml": "coverage.xml", "min_diff_coverage_pct": 90.0})
-    monkeypatch.setattr(coverage_gate, "git_added_lines",
-                        lambda root, base: {"backend/core/logger.py": {11}})
+    monkeypatch.setattr(
+        coverage_gate,
+        "load_coverage_config",
+        lambda root: {
+            **coverage_gate.DEFAULT_CONFIG,
+            "mode": "gating",
+            "coverage_xml": "coverage.xml",
+            "min_diff_coverage_pct": 90.0,
+        },
+    )
+    monkeypatch.setattr(coverage_gate, "git_added_lines", lambda root, base: {"backend/core/logger.py": {11}})
     assert coverage_gate.main([]) == 1
 
 
@@ -152,6 +168,7 @@ def test_unresolvable_diff_base_is_not_a_false_zero(tmp_path: Path, monkeypatch)
 # ---------------------------------------------------------------------------
 # Diff decoding -- a REAL repo, because the defect is in HOW git is invoked
 # ---------------------------------------------------------------------------
+
 
 def _git(repo: Path, *args: str) -> None:
     """Run git in *repo*, failing loudly. Bytes on purpose: the harness never decodes."""
@@ -198,7 +215,7 @@ def test_git_added_lines_parses_a_diff_the_locale_codec_cannot_decode(tmp_path: 
     _git(repo, "commit", "-m", "base")
 
     # Two lines inserted at the top; the first carries 0x8D in its UTF-8 encoding.
-    source.write_text('EMOJI = "\U0001F37E"\nVALUE = 1\nBASE = 0\n', encoding="utf-8")
+    source.write_text('EMOJI = "\U0001f37e"\nVALUE = 1\nBASE = 0\n', encoding="utf-8")
     _git(repo, "commit", "-a", "-m", "insert two lines, one undecodable in cp1252")
 
     added = coverage_gate.git_added_lines(repo, "HEAD~1")
@@ -270,15 +287,14 @@ def test_an_undecodable_byte_is_replaced_rather_than_crashing(tmp_path: Path, mo
     hard `UnicodeDecodeError`, i.e. the same class of crash the whole change removes, just
     arriving from the other direction.
     """
+
     def _invalid_utf8(*args, **kwargs):
         if "rev-parse" in args[0]:  # base ref resolves; only the diff is under test
             return type("P", (), {"stdout": ""})()
         # 0xFF is not valid UTF-8 in any position. Decode it exactly as the module asks
         # subprocess to, so the assertion is about the module's OWN encoding arguments.
         payload = b'+++ b/backend/m.py\n@@ -1,0 +1,1 @@\n+X = "\xff"\n'
-        return type("P", (), {
-            "stdout": payload.decode(kwargs["encoding"], errors=kwargs["errors"])
-        })()
+        return type("P", (), {"stdout": payload.decode(kwargs["encoding"], errors=kwargs["errors"])})()
 
     monkeypatch.setattr(coverage_gate.subprocess, "run", _invalid_utf8)
 
@@ -298,6 +314,7 @@ def test_a_thread_swallowed_decode_becomes_cannot_compute(monkeypatch, tmp_path:
     Without the guard this raises AttributeError deep in the parser -- an error naming
     neither git nor encoding, which is exactly how long the origin project's debugging took.
     """
+
     class _Swallowed:
         stdout = None
 
@@ -357,9 +374,7 @@ def _write_two_root_report(tmp_path: Path) -> Path:
 def test_diff_coverage_is_not_a_silent_no_op_against_a_real_report(tmp_path: Path) -> None:
     """`git diff` yields backend/ingest.py; the report keys it as ingest.py."""
     report = coverage_gate.parse_cobertura(_write_two_root_report(tmp_path), repo_root=tmp_path)
-    covered, total, uncovered = coverage_gate.compute_diff_coverage(
-        {"backend/ingest.py": {1, 2}}, report
-    )
+    covered, total, uncovered = coverage_gate.compute_diff_coverage({"backend/ingest.py": {1, 2}}, report)
     assert (covered, total) == (1, 2), "the added lines must be MEASURED, not skipped"
     assert uncovered == ["backend/ingest.py:2"]
 
@@ -457,9 +472,9 @@ def test_the_branch_ratchet_arm_actually_blocks(tmp_path: Path, monkeypatch) -> 
     config = _baseline_config(tmp_path, line_pct=1.0, branch_pct=90.0)
     result = coverage_gate.evaluate(tmp_path, config, coverage_gate.parse_cobertura(tmp_path / "coverage.xml"))
     assert result.failed is True, "a branch regression must block, not merely be printed"
-    assert any(
-        sev == "FAIL" and "branch coverage" in text for sev, text in result.messages
-    ), f"the failure must NAME the branch arm: {result.messages}"
+    assert any(sev == "FAIL" and "branch coverage" in text for sev, text in result.messages), (
+        f"the failure must NAME the branch arm: {result.messages}"
+    )
 
 
 def test_the_branch_arm_does_not_fire_at_the_floor(tmp_path: Path, monkeypatch) -> None:
@@ -512,18 +527,12 @@ def test_the_branch_arm_catches_what_the_line_arm_cannot(tmp_path: Path, monkeyp
 def _evaluate_with_zero_diff(tmp_path: Path, monkeypatch, untracked: list[str]):
     _write_report(tmp_path)
     monkeypatch.setattr(coverage_gate, "git_added_lines", lambda root, base: {})
-    monkeypatch.setattr(
-        coverage_gate, "untracked_files_under_source", lambda root, config: untracked
-    )
+    monkeypatch.setattr(coverage_gate, "untracked_files_under_source", lambda root, config: untracked)
     config = {**coverage_gate.DEFAULT_CONFIG, "coverage_xml": "coverage.xml"}
-    return coverage_gate.evaluate(
-        tmp_path, config, coverage_gate.parse_cobertura(tmp_path / "coverage.xml")
-    )
+    return coverage_gate.evaluate(tmp_path, config, coverage_gate.parse_cobertura(tmp_path / "coverage.xml"))
 
 
-def test_zero_diff_with_untracked_source_files_warns_and_names_them(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_zero_diff_with_untracked_source_files_warns_and_names_them(tmp_path: Path, monkeypatch) -> None:
     result = _evaluate_with_zero_diff(tmp_path, monkeypatch, ["backend/new_module.py"])
     warns = [t for s, t in result.messages if s == "WARN"]
     assert any("measured NOTHING" in t and "backend/new_module.py" in t for t in warns), (
@@ -531,14 +540,10 @@ def test_zero_diff_with_untracked_source_files_warns_and_names_them(
     )
 
 
-def test_zero_diff_with_no_untracked_files_stays_a_calm_info(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_zero_diff_with_no_untracked_files_stays_a_calm_info(tmp_path: Path, monkeypatch) -> None:
     """The legitimate case (docs commit) must not cry wolf."""
     result = _evaluate_with_zero_diff(tmp_path, monkeypatch, [])
-    assert any(
-        s == "INFO" and "no new/changed executable lines" in t for s, t in result.messages
-    )
+    assert any(s == "INFO" and "no new/changed executable lines" in t for s, t in result.messages)
     assert not any("measured NOTHING" in t for _s, t in result.messages)
 
 

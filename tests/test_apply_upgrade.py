@@ -72,6 +72,7 @@ def test_unreadable_target_is_treated_as_stale(tmp_path: Path) -> None:
 # docs/upgrades/ IS the library and removal is `prune`'s job.
 # ---------------------------------------------------------------------------
 
+
 def _config(root: Path, body: str) -> None:
     root.mkdir(parents=True, exist_ok=True)
     (root / "config.yaml").write_text(body, encoding="utf-8")
@@ -85,10 +86,10 @@ def test_expected_min_projects_is_read_from_config(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "body",
     [
-        "knowledge:\n  memory_store: docs/memory\n",   # no fleet: section
-        "fleet:\n  expected_min_projects: nope\n",      # not an int
-        "fleet:\n  expected_min_projects: -1\n",        # nonsense
-        "fleet: []\n",                                   # wrong shape
+        "knowledge:\n  memory_store: docs/memory\n",  # no fleet: section
+        "fleet:\n  expected_min_projects: nope\n",  # not an int
+        "fleet:\n  expected_min_projects: -1\n",  # nonsense
+        "fleet: []\n",  # wrong shape
     ],
 )
 def test_unreadable_fleet_config_returns_none(tmp_path: Path, body: str) -> None:
@@ -128,9 +129,7 @@ def test_unconfigured_guard_says_so_out_loud(tmp_path: Path, capsys: pytest.Capt
 def _record_repo(tmp_path: Path, project_name: str) -> tuple[Path, str]:
     root = tmp_path / "repo"
     (root / "_bmad").mkdir(parents=True)
-    (root / "_bmad" / "config.toml").write_text(
-        f'[core]\nproject_name = "{project_name}"\n', encoding="utf-8"
-    )
+    (root / "_bmad" / "config.toml").write_text(f'[core]\nproject_name = "{project_name}"\n', encoding="utf-8")
     packs = root / "docs" / "upgrades"
     packs.mkdir(parents=True)
     name = "upgrade_instructions_thing_260727_2035.md"
@@ -140,8 +139,12 @@ def _record_repo(tmp_path: Path, project_name: str) -> tuple[Path, str]:
 
 def _record_args(name: str) -> argparse.Namespace:
     return argparse.Namespace(
-        pack_filename=name, status="applied", notes="", yes=True,
-        dry_run=False, delete_pack=False,
+        pack_filename=name,
+        status="applied",
+        notes="",
+        yes=True,
+        dry_run=False,
+        delete_pack=False,
     )
 
 
@@ -151,9 +154,7 @@ def _patch_git(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:
     monkeypatch.setattr(apply_upgrade, "git_path_is_tracked", lambda *a, **k: False)
 
 
-def test_record_retains_the_pack_in_the_master_template(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_retains_the_pack_in_the_master_template(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The near-miss: this would have destroyed the only copy of a pack pre-dissemination."""
     root, name = _record_repo(tmp_path, apply_upgrade.TEMPLATE_PROJECT_NAME)
     _patch_git(monkeypatch, root)
@@ -163,9 +164,7 @@ def test_record_retains_the_pack_in_the_master_template(
     assert name in (root / "docs" / "upgrades" / "upgrades_ledger.md").read_text(encoding="utf-8")
 
 
-def test_record_still_deletes_the_pack_in_a_fleet_project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_still_deletes_the_pack_in_a_fleet_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Receiving projects are unchanged: row + deletion is still the closing action."""
     root, name = _record_repo(tmp_path, "Horse racing tips")
     _patch_git(monkeypatch, root)
@@ -174,9 +173,7 @@ def test_record_still_deletes_the_pack_in_a_fleet_project(
     assert not (root / "docs" / "upgrades" / name).exists()
 
 
-def test_delete_pack_flag_overrides_the_template_guard(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_delete_pack_flag_overrides_the_template_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, name = _record_repo(tmp_path, apply_upgrade.TEMPLATE_PROJECT_NAME)
     _patch_git(monkeypatch, root)
     args = _record_args(name)
@@ -376,12 +373,8 @@ _LEDGER_WITH_MENTION = (
 
 def test_a_notes_mention_is_not_a_record() -> None:
     """The defect, stated as the unit it lives in."""
-    assert not apply_upgrade.ledger_contains(
-        _LEDGER_WITH_MENTION, "upgrade_instructions_thing_260727_2035.md"
-    )
-    assert apply_upgrade.ledger_contains(
-        _LEDGER_WITH_MENTION, "upgrade_instructions_other_260801_0900.md"
-    )
+    assert not apply_upgrade.ledger_contains(_LEDGER_WITH_MENTION, "upgrade_instructions_thing_260727_2035.md")
+    assert apply_upgrade.ledger_contains(_LEDGER_WITH_MENTION, "upgrade_instructions_other_260801_0900.md")
 
 
 def test_cell_match_is_equality_not_substring() -> None:
@@ -394,9 +387,7 @@ def test_cell_match_is_equality_not_substring() -> None:
     assert not apply_upgrade.ledger_contains(ledger, "thing_260801_0900.md")
 
 
-def test_record_appends_a_row_despite_a_notes_mention(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_appends_a_row_despite_a_notes_mention(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Regression test 1 from the pack: the row must be written, not skipped."""
     root, name = _record_repo(tmp_path, "Fleet Project")
     ledger = root / "docs" / "upgrades" / "upgrades_ledger.md"
@@ -437,9 +428,7 @@ def test_recorded_row_lands_inside_the_table_not_after_trailing_prose(
     row_index = next(i for i, ln in enumerate(lines) if name in ln)
     prose_index = next(i for i, ln in enumerate(lines) if ln.startswith("## Trailing prose"))
     assert row_index < prose_index, "the new row must land INSIDE the table"
-    assert lines[row_index - 1].strip().startswith("|"), (
-        "the line above the new row must be a table row"
-    )
+    assert lines[row_index - 1].strip().startswith("|"), "the line above the new row must be a table row"
 
 
 def test_a_ledger_with_no_table_gains_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -468,9 +457,7 @@ def test_a_genuine_prior_row_still_dedups(tmp_path: Path, monkeypatch: pytest.Mo
     (root / "docs" / "upgrades" / name).write_text("# Pack\n", encoding="utf-8")
     assert apply_upgrade.cmd_record(_record_args(name)) == 0
     text = ledger.read_text(encoding="utf-8")
-    assert text.count("`" + name + "`") == 1, (
-        "a genuinely recorded pack must not gain duplicate rows"
-    )
+    assert text.count("`" + name + "`") == 1, "a genuinely recorded pack must not gain duplicate rows"
 
 
 def test_list_reports_the_subject_set_and_names_unrecognised_files(
@@ -518,9 +505,7 @@ def test_prune_refuses_outside_the_master(
     assert "ONLY the master template prunes" in capsys.readouterr().out
 
 
-def test_a_missing_bmad_config_fails_closed_not_open(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_missing_bmad_config_fails_closed_not_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No _bmad/config.toml -> project_name None -> NOT the master -> refuse."""
     root = tmp_path / "bare"
     (root / "docs" / "upgrades").mkdir(parents=True)
@@ -545,9 +530,7 @@ def test_recorded_skip_warning_names_the_unreachable_pack(
     """
     master = tmp_path / "master"
     (master / "_bmad").mkdir(parents=True)
-    (master / "_bmad" / "config.toml").write_text(
-        '[core]\nproject_name = "_NEON dev stack"\n', encoding="utf-8"
-    )
+    (master / "_bmad" / "config.toml").write_text('[core]\nproject_name = "_NEON dev stack"\n', encoding="utf-8")
     packs = master / "docs" / "upgrades"
     packs.mkdir(parents=True)
     name = "upgrade_instructions_corrected_260829_0100.md"

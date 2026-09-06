@@ -22,6 +22,7 @@ import archive_session  # noqa: E402
 # Transcript matching filter
 # ---------------------------------------------------------------------------
 
+
 def _make_transcript(brain_dir: Path, conv_id: str, text: str, mtime_offset: int) -> Path:
     """Create brain/<conv_id>/.system_generated/logs/transcript.jsonl with the given text."""
     logs_dir = brain_dir / conv_id / ".system_generated" / "logs"
@@ -48,18 +49,14 @@ def test_transcript_references_project(tmp_path: Path) -> None:
     assert archive_session.transcript_references_project(matching, "My-Project") is True
 
 
-def test_find_active_transcript_prefers_matching_over_newest(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_find_active_transcript_prefers_matching_over_newest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The newest transcript belongs to another project; the older one that
     references this project must win."""
     brain = tmp_path / "brain"
     older_matching = _make_transcript(
         brain, "conv-this-project", '{"content": "path/to/my-project/file.py"}\n', mtime_offset=-100
     )
-    _make_transcript(
-        brain, "conv-other-client", '{"content": "path/to/other-client/file.py"}\n', mtime_offset=0
-    )
+    _make_transcript(brain, "conv-other-client", '{"content": "path/to/other-client/file.py"}\n', mtime_offset=0)
     monkeypatch.setattr(archive_session, "candidate_brain_dirs", lambda: [brain])
 
     found = archive_session.find_active_transcript("my-project")
@@ -79,9 +76,7 @@ def test_find_active_transcript_skips_when_unmatched(
     assert "my-project" in out
 
 
-def test_find_active_transcript_allow_unmatched_returns_newest(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_find_active_transcript_allow_unmatched_returns_newest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     brain = tmp_path / "brain"
     _make_transcript(brain, "conv-older", '{"content": "unrelated A"}\n', mtime_offset=-100)
     newest = _make_transcript(brain, "conv-newer", '{"content": "unrelated B"}\n', mtime_offset=0)
@@ -94,6 +89,7 @@ def test_find_active_transcript_allow_unmatched_returns_newest(
 # ---------------------------------------------------------------------------
 # Sweep staging pathspec logic (deletion at the OLD path must be staged)
 # ---------------------------------------------------------------------------
+
 
 def _git(repo: Path, *args: str) -> str:
     result = subprocess.run(
@@ -166,6 +162,7 @@ def test_run_git_add_skips_missing_untracked_paths(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Session-log placement (agent-written log is authoritative; stub is fallback)
 # ---------------------------------------------------------------------------
+
 
 def _outcomes() -> "archive_session.RunOutcomes":
     return archive_session.RunOutcomes()
@@ -288,12 +285,16 @@ def _claude_transcript(path: Path, conv_id: str, texts: list[str]) -> Path:
 
     lines = []
     for t in texts:
-        lines.append(json.dumps({
-            "sessionId": conv_id,
-            "cwd": "D:/whatever",
-            "type": "user",
-            "message": {"role": "user", "content": [{"type": "text", "text": t}]},
-        }))
+        lines.append(
+            json.dumps(
+                {
+                    "sessionId": conv_id,
+                    "cwd": "D:/whatever",
+                    "type": "user",
+                    "message": {"role": "user", "content": [{"type": "text", "text": t}]},
+                }
+            )
+        )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
 
@@ -318,9 +319,7 @@ def test_same_minute_backups_do_not_destroy_each_other(tmp_path: Path) -> None:
 
     surviving = sorted(archive.glob("chat_backup_*.md"))
     blob = "\n".join(p.read_text(encoding="utf-8") for p in surviving)
-    assert "conv-AAA" in blob, (
-        f"the first conversation was destroyed; only {[p.name for p in surviving]} survive"
-    )
+    assert "conv-AAA" in blob, f"the first conversation was destroyed; only {[p.name for p in surviving]} survive"
     assert "conv-BBB" in blob, "the second conversation was not archived"
 
 
@@ -336,9 +335,7 @@ def test_active_conversation_is_not_skipped_by_the_already_archived_guard(tmp_pa
     archive.mkdir(parents=True)
     transcript = _claude_transcript(tmp_path / "live.jsonl", "conv-LIVE", ["first half"])
     backup = archive / "chat_backup_260728_1926.md"
-    backup.write_text(
-        "# Chat Backup\n\n**Conversation ID:** conv-LIVE\n\nfirst half\n", encoding="utf-8"
-    )
+    backup.write_text("# Chat Backup\n\n**Conversation ID:** conv-LIVE\n\nfirst half\n", encoding="utf-8")
 
     archived_at = datetime(2026, 7, 28, 19, 26).timestamp()
 
@@ -401,9 +398,7 @@ def test_continuation_uses_the_filename_stamp_not_the_backup_mtime(tmp_path: Pat
     archive.mkdir(parents=True)
     transcript = _claude_transcript(tmp_path / "live.jsonl", "conv-LIVE", ["first half"])
     backup = archive / "chat_backup_260728_1926.md"
-    backup.write_text(
-        "# Chat Backup\n\n**Conversation ID:** conv-LIVE\n\nfirst half\n", encoding="utf-8"
-    )
+    backup.write_text("# Chat Backup\n\n**Conversation ID:** conv-LIVE\n\nfirst half\n", encoding="utf-8")
 
     archived_at = datetime(2026, 7, 28, 19, 26).timestamp()
     # The session continued 5 minutes after that archive was taken...
@@ -427,12 +422,8 @@ def test_backup_stamp_parses_disambiguated_collision_names(tmp_path: Path) -> No
     stamp regex rejected the disambiguating suffix, those backups would register at
     datetime.min and their conversations would be re-archived on every run.
     """
-    assert archive_session._backup_stamp(tmp_path / "chat_backup_260731_1400.md") == datetime(
-        2026, 7, 31, 14, 0
-    )
-    assert archive_session._backup_stamp(tmp_path / "chat_backup_260731_1400_b.md") == datetime(
-        2026, 7, 31, 14, 0
-    )
+    assert archive_session._backup_stamp(tmp_path / "chat_backup_260731_1400.md") == datetime(2026, 7, 31, 14, 0)
+    assert archive_session._backup_stamp(tmp_path / "chat_backup_260731_1400_b.md") == datetime(2026, 7, 31, 14, 0)
     assert archive_session._backup_stamp(tmp_path / "session_260731_1400.md") is None
 
 
@@ -448,9 +439,7 @@ def test_collision_guard_does_not_overwrite_on_a_body_mention(tmp_path: Path) ->
     archive.mkdir(parents=True)
     dest = archive / "chat_backup_260731_1400.md"
     dest.write_text(
-        "# Chat Backup\n\n"
-        "**Conversation ID:** conv-OLD\n\n"
-        "Notes captured while debugging conv-NEW.\n",
+        "# Chat Backup\n\n**Conversation ID:** conv-OLD\n\nNotes captured while debugging conv-NEW.\n",
         encoding="utf-8",
     )
 
@@ -481,9 +470,7 @@ def test_claude_backup_returns_the_path_it_actually_wrote(tmp_path: Path) -> Non
 
     # On a collision it must return the DISAMBIGUATED path, not the one requested.
     second = _claude_transcript(tmp_path / "b.jsonl", "conv-BBB", ["second"])
-    redirected = archive_session.generate_chat_backup(
-        second, dest, "260731_1400", "conv-BBB", "claude"
-    )
+    redirected = archive_session.generate_chat_backup(second, dest, "260731_1400", "conv-BBB", "claude")
     assert redirected != dest, "the second conversation must not claim the first one's path"
     assert redirected.exists(), "staging would point at a file that was never written"
 
@@ -492,27 +479,29 @@ def test_claude_backup_returns_the_path_it_actually_wrote(tmp_path: Path) -> Non
 # Multi-window transcript selection (archive_session_integrity pack S6)
 # ---------------------------------------------------------------------------
 
+
 def _claude_project_transcript(pdir: Path, conv_id: str, cwd: str, mtime: float) -> Path:
     """A Claude Code transcript in a project dir, with an explicit cwd and mtime."""
     import json
 
     path = pdir / f"{conv_id}.jsonl"
     path.write_text(
-        json.dumps({
-            "sessionId": conv_id,
-            "cwd": cwd,
-            "type": "user",
-            "message": {"role": "user", "content": [{"type": "text", "text": "hi"}]},
-        }) + "\n",
+        json.dumps(
+            {
+                "sessionId": conv_id,
+                "cwd": cwd,
+                "type": "user",
+                "message": {"role": "user", "content": [{"type": "text", "text": "hi"}]},
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
     os.utime(path, (mtime, mtime))
     return path
 
 
-def test_session_id_beats_newest_mtime_with_two_windows_open(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_session_id_beats_newest_mtime_with_two_windows_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """With two windows open, EVERY transcript matches cwd and every one is live.
 
     "Newest mtime" then selects whichever window typed most recently, not the one
@@ -526,13 +515,12 @@ def test_session_id_beats_newest_mtime_with_two_windows_open(
     monkeypatch.setattr(archive_session, "claude_project_dirs", lambda: [pdir])
 
     now = time.time()
-    _claude_project_transcript(pdir, "conv-OTHER", str(project), now)       # newest
+    _claude_project_transcript(pdir, "conv-OTHER", str(project), now)  # newest
     mine = _claude_project_transcript(pdir, "conv-MINE", str(project), now - 600)
 
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "conv-MINE")
     assert archive_session.find_claude_transcript(project) == mine, (
-        "the calling session's own transcript must win over a more recently "
-        "typed-in window"
+        "the calling session's own transcript must win over a more recently typed-in window"
     )
 
 
@@ -554,8 +542,7 @@ def test_falls_back_to_mtime_scan_and_warns_when_session_id_is_absent(
     assert archive_session.find_claude_transcript(project) == newest
     warning = capsys.readouterr().out
     assert "2 transcripts for this project" in warning, (
-        "two live transcripts within the hour is exactly the case mtime cannot "
-        "resolve; choosing silently hides it"
+        "two live transcripts within the hour is exactly the case mtime cannot resolve; choosing silently hides it"
     )
 
 
@@ -603,12 +590,11 @@ def test_the_newest_workplan_survives_the_sweep_and_older_ones_do_not(tmp_path: 
     old_plan.write_text("old\n", encoding="utf-8")
     new_plan.write_text("new\n", encoding="utf-8")
     import os as _os
+
     _os.utime(old_plan, (1, 1))  # unambiguously older
 
     staged: list[Path] = []
-    moved, failed = archive_session.archive_all_folders_with_archives(
-        root, "260829_9999", staged, dry_run=False
-    )
+    moved, failed = archive_session.archive_all_folders_with_archives(root, "260829_9999", staged, dry_run=False)
     assert failed == 0
     assert new_plan.exists(), "the NEWEST workplan must stay in place"
     assert not old_plan.exists(), "older workplans archive as normal"

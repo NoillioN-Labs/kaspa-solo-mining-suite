@@ -33,6 +33,7 @@ from write_boundary_check import check_write_boundary  # noqa: E402
 # AGENTS 9 write boundary -- the rule, and the Adapter Rule that moved it here
 # ---------------------------------------------------------------------------
 
+
 def _fleet(tmp_path: Path) -> tuple[Path, Path]:
     """A fleet directory holding this project and one governed sibling."""
     mine = tmp_path / "my-project"
@@ -106,9 +107,16 @@ def test_boundary_check_cli_reports_a_machine_readable_verdict(tmp_path: Path) -
 
     mine, sibling = _fleet(tmp_path)
     proc = subprocess.run(
-        [sys.executable, str(REPO / "scripts" / "utilities" / "write_boundary_check.py"),
-         "--target", str(sibling / "backend" / "x.py"), "--project-root", str(mine)],
-        capture_output=True, text=True,
+        [
+            sys.executable,
+            str(REPO / "scripts" / "utilities" / "write_boundary_check.py"),
+            "--target",
+            str(sibling / "backend" / "x.py"),
+            "--project-root",
+            str(mine),
+        ],
+        capture_output=True,
+        text=True,
     )
     assert proc.returncode == 1
     assert json.loads(proc.stdout)["allowed"] is False
@@ -117,6 +125,7 @@ def test_boundary_check_cli_reports_a_machine_readable_verdict(tmp_path: Path) -
 # ---------------------------------------------------------------------------
 # Temp-root pruning -- a SIZE ceiling, oldest-first
 # ---------------------------------------------------------------------------
+
 
 def test_temp_prune_deletes_oldest_first_only_until_under_the_ceiling(tmp_path: Path) -> None:
     """Emptying the root would destroy the scratch of the run that triggered the sweep.
@@ -165,9 +174,7 @@ def test_temp_prune_reads_the_configured_root_not_a_hardcoded_one(tmp_path: Path
     its own docstring cited -- so a project that set testing.temp_root was pruning the
     wrong directory, or nothing at all."""
     config = tmp_path / "config.yaml"
-    config.write_text(
-        "testing:\n  temp_root: 'custom/scratch'\n  temp_root_max_gb: 3.5\n", encoding="utf-8"
-    )
+    config.write_text("testing:\n  temp_root: 'custom/scratch'\n  temp_root_max_gb: 3.5\n", encoding="utf-8")
     root, max_gb = prune_temp_root._load_settings(config)
     assert root.parts[-2:] == ("custom", "scratch")
     assert max_gb == 3.5
@@ -176,6 +183,7 @@ def test_temp_prune_reads_the_configured_root_not_a_hardcoded_one(tmp_path: Path
 # ---------------------------------------------------------------------------
 # Producer/pruner coherence -- one prefix, read by both
 # ---------------------------------------------------------------------------
+
 
 def test_backup_producer_and_pruner_share_one_filename_convention() -> None:
     """Split them and the pruner silently matches nothing: it reports "no candidates",
@@ -227,6 +235,7 @@ def test_backup_producer_creates_a_restorable_snapshot(tmp_path: Path) -> None:
 # External data mirror -- never guesses a destination, never deletes
 # ---------------------------------------------------------------------------
 
+
 def test_mirror_refuses_without_an_explicit_destination() -> None:
     assert backup_project_data.main(["--execute"]) == 1, (
         "an external destination is AGENTS 9 ask-first; it must never be guessed"
@@ -262,6 +271,7 @@ def test_mirror_never_deletes_at_the_destination(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Capability-lie check -- generalised off one project's schema
 # ---------------------------------------------------------------------------
+
 
 def test_capability_check_defaults_to_the_constitution_prompt_layout() -> None:
     """AGENTS 5.4 mandates backend/ai_modules/<NN>_<agent>/ with one __prompt__ file,

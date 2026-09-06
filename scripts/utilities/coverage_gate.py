@@ -427,8 +427,7 @@ def untracked_files_under_source(root: Path, config: dict) -> list[str]:
         return []
     try:
         proc = subprocess.run(
-            ["git", "-c", "core.quotepath=false", "ls-files", "--others",
-             "--exclude-standard", "--", *sources],
+            ["git", "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard", "--", *sources],
             cwd=root,
             check=True,
             capture_output=True,
@@ -442,9 +441,7 @@ def untracked_files_under_source(root: Path, config: dict) -> list[str]:
     return sorted(line.strip() for line in proc.stdout.split("\n") if line.strip())
 
 
-def compute_diff_coverage(
-    added: dict[str, set[int]], report: CoverageReport
-) -> tuple[int, int, list[str]]:
+def compute_diff_coverage(added: dict[str, set[int]], report: CoverageReport) -> tuple[int, int, list[str]]:
     """Intersect added lines with executable/covered lines. Returns (covered, total, uncovered_labels)."""
     covered = 0
     total = 0
@@ -572,8 +569,7 @@ def evaluate(root: Path, config: dict, report: CoverageReport) -> GateResult:
                 more = "" if len(uncovered) <= 10 else f" (+{len(uncovered) - 10} more)"
                 result.note(
                     "FAIL",
-                    f"diff coverage {result.diff_pct:.1f}% < {min_diff:.0f}% floor; "
-                    f"uncovered new lines: {shown}{more}",
+                    f"diff coverage {result.diff_pct:.1f}% < {min_diff:.0f}% floor; uncovered new lines: {shown}{more}",
                 )
             else:
                 result.note("INFO", f"diff coverage {result.diff_pct:.1f}% >= {min_diff:.0f}% floor")
@@ -618,8 +614,7 @@ def evaluate(root: Path, config: dict, report: CoverageReport) -> GateResult:
     else:
         result.note(
             "INFO",
-            f"branch coverage {report.branch_pct:.2f}% vs baseline "
-            f"{result.baseline_branch_pct:.2f}% (ok)",
+            f"branch coverage {report.branch_pct:.2f}% vs baseline {result.baseline_branch_pct:.2f}% (ok)",
         )
     return result
 

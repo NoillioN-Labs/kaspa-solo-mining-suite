@@ -232,9 +232,7 @@ def stage_paths(root: Path, rel_paths: list[str]) -> None:
         return
     result = run_git(root, ["add", "--", *to_add])
     if result.returncode != 0:
-        raise RuntimeError(
-            f"git add failed (rc={result.returncode}): {result.stderr.strip()}"
-        )
+        raise RuntimeError(f"git add failed (rc={result.returncode}): {result.stderr.strip()}")
     print(f"[OK] Staged via git add: {', '.join(to_add)}")
 
 
@@ -261,9 +259,7 @@ def cmd_list(_args: argparse.Namespace) -> int:
     # this command -- the origin project held one for weeks with no ledger row under
     # any spelling, and `list` printed the same clean bill it prints for an empty
     # directory. A count of zero is only meaningful beside the count examined.
-    all_md = sorted(
-        p for p in directory.glob("*.md") if p.is_file() and p.name != LEDGER_NAME
-    )
+    all_md = sorted(p for p in directory.glob("*.md") if p.is_file() and p.name != LEDGER_NAME)
     unrecognised = [p.name for p in all_md if not is_pack(p.name)]
     print(
         f"Examined {len(all_md)} .md file(s) in docs/upgrades/ "
@@ -651,9 +647,7 @@ def cmd_disseminate(args: argparse.Namespace) -> int:
         for name, buckets in plan.items()
     ]
     print("\nDissemination plan:")
-    print_table(
-        ["Project", "To Copy", "To Refresh (stale)", "Skip (identical)", "Skip (in ledger)"], rows
-    )
+    print_table(["Project", "To Copy", "To Refresh (stale)", "Skip (identical)", "Skip (in ledger)"], rows)
 
     total_copies = sum(len(b["copy"]) + len(b["update"]) for b in plan.values())
     for name, buckets in plan.items():
@@ -837,16 +831,12 @@ def cmd_prune(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Deterministic lifecycle utility for upgrade instruction packs."
-    )
+    parser = argparse.ArgumentParser(description="Deterministic lifecycle utility for upgrade instruction packs.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("list", help="Show packs in docs/upgrades/ and ledger state.")
 
-    record_parser = subparsers.add_parser(
-        "record", help="Closing action: ledger row + pack deletion + git add."
-    )
+    record_parser = subparsers.add_parser("record", help="Closing action: ledger row + pack deletion + git add.")
     record_parser.add_argument("pack_filename", type=str, help="Pack filename (bare, no path).")
     record_parser.add_argument(
         "--status",
@@ -870,9 +860,7 @@ def main() -> int:
         "disseminate",
         help="Template-only: copy approved packs to fleet projects. Requires --approved-by-user.",
     )
-    disseminate_parser.add_argument(
-        "--dry-run", action="store_true", help="Preview the copy plan without acting."
-    )
+    disseminate_parser.add_argument("--dry-run", action="store_true", help="Preview the copy plan without acting.")
     disseminate_parser.add_argument(
         "--only",
         action="append",
@@ -899,12 +887,8 @@ def main() -> int:
         ),
     )
 
-    prune_parser = subparsers.add_parser(
-        "prune", help="Template-only: delete packs recorded by every fleet ledger."
-    )
-    prune_parser.add_argument(
-        "--dry-run", action="store_true", help="Preview the prune plan without acting."
-    )
+    prune_parser = subparsers.add_parser("prune", help="Template-only: delete packs recorded by every fleet ledger.")
+    prune_parser.add_argument("--dry-run", action="store_true", help="Preview the prune plan without acting.")
     prune_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt.")
 
     args = parser.parse_args()

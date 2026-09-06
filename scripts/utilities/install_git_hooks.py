@@ -53,8 +53,7 @@ def _git(*args: str, cwd: Path) -> str:
     )
     if proc.returncode != 0:
         raise RuntimeError(
-            f"git {' '.join(args)} failed (exit {proc.returncode}): "
-            f"{proc.stderr.strip() or proc.stdout.strip()}"
+            f"git {' '.join(args)} failed (exit {proc.returncode}): {proc.stderr.strip() or proc.stdout.strip()}"
         )
     return proc.stdout.strip()
 

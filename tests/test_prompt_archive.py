@@ -173,13 +173,9 @@ def test_a_grandfathered_live_file_with_an_agents54_archive_is_clean(tmp_path: P
     legacy file read as unarchived."""
     agent = _agent(tmp_path)
     (agent / "10_demo_agent__prompt__260711_0035.md").write_text("x", encoding="utf-8")
-    (agent / "archive" / "10_demo_agent__prompt__260711_0035_260711_0036.md").write_text(
-        "x", encoding="utf-8"
-    )
+    (agent / "archive" / "10_demo_agent__prompt__260711_0035_260711_0036.md").write_text("x", encoding="utf-8")
     result = governance_lint.check_prompt_archive(tmp_path)
-    assert _errors(result) == [], (
-        f"a correctly archived grandfathered file must not ERROR: {_errors(result)}"
-    )
+    assert _errors(result) == [], f"a correctly archived grandfathered file must not ERROR: {_errors(result)}"
 
 
 def test_a_marker_without_trailing_underscores_is_visible(tmp_path: Path) -> None:

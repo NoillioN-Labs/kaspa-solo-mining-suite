@@ -144,9 +144,7 @@ def database_backup_dir(config_path: Path | None = None) -> str:
     return str(value).replace("\\", "/").rstrip("/") if value else _DEFAULT_BACKUP_DIR
 
 
-def destination_relative_backup_dir(
-    config_path: Path | None = None, project_root: Path | None = None
-) -> str | None:
+def destination_relative_backup_dir(config_path: Path | None = None, project_root: Path | None = None) -> str | None:
     """`backup_dir` expressed relative to the project root, or None if it cannot be.
 
     `backup_dir` is documented as "relative to repo root, or absolute", and an absolute
@@ -211,9 +209,7 @@ def discover_category_files(category: str, project_root: Path, categories: dict[
     return sorted({p for p in project_root.glob(pattern) if p.is_file()})
 
 
-def mirror_files(
-    files: list[Path], project_root: Path, destination_root: Path, *, execute: bool
-) -> dict[str, int]:
+def mirror_files(files: list[Path], project_root: Path, destination_root: Path, *, execute: bool) -> dict[str, int]:
     """Copy each file (by its path relative to project_root) into destination_root
     when the destination copy is missing, older, or A DIFFERENT SIZE. Never deletes at
     the destination because the source no longer has the file.
@@ -332,11 +328,7 @@ def prune_destination_backups(
             print("[WARN] prune_db_backups unavailable; destination retention skipped.")
             return {"candidates": 0, "deleted": 0, "failed": -1}
 
-    enabled = (
-        enabled_categories
-        if enabled_categories is not None
-        else load_enabled_categories(config_path)
-    )
+    enabled = enabled_categories if enabled_categories is not None else load_enabled_categories(config_path)
     try:
         retention = _load_config(config_path)
     except Exception as exc:  # noqa: BLE001 -- see below; yaml raises its own hierarchy
@@ -345,8 +337,7 @@ def prune_destination_backups(
         # a traceback here destroys the report of a backup that did land. Fail the way
         # everything else in this module fails: loudly, with the -1 "did not run"
         # sentinel, never a quiet zero (AGENTS 5.5.1).
-        print(f"[WARN] cannot read retention config ({type(exc).__name__}); "
-              "destination retention skipped.")
+        print(f"[WARN] cannot read retention config ({type(exc).__name__}); destination retention skipped.")
         return {"candidates": 0, "deleted": 0, "failed": -1}
     daily_count = retention["daily_count"]
     weekly_count = retention["weekly_count"]
@@ -433,13 +424,15 @@ def mirror_enabled_categories(
     categories = load_categories(config_path)
     enabled = load_enabled_categories(config_path)
     totals = {
-        "copied": 0, "skipped": 0, "failed": 0,
-        "destination_pruned": 0, "categories": len(enabled), "verified": 0,
+        "copied": 0,
+        "skipped": 0,
+        "failed": 0,
+        "destination_pruned": 0,
+        "categories": len(enabled),
+        "verified": 0,
     }
 
-    destination_str = (
-        str(destination_root) if destination_root else load_destination(config_path)
-    )
+    destination_str = str(destination_root) if destination_root else load_destination(config_path)
     if not destination_str:
         totals["failed"] = -1  # sentinel: nothing was attempted, and that is a failure to report
         return totals
@@ -493,16 +486,17 @@ def mirror_enabled_categories(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "--destination", type=str, default=None,
+        "--destination",
+        type=str,
+        default=None,
         help="Override config.yaml's backup.destination_path for this run.",
     )
     parser.add_argument("--execute", action="store_true", help="Actually copy (default: dry-run).")
     parser.add_argument(
-        "--prune-destination", action="store_true",
+        "--prune-destination",
+        action="store_true",
         help=(
             "After mirroring, apply the config.yaml database_backups GFS policy to the "
             "DESTINATION's own contents. Never consults the source, so a source-side "

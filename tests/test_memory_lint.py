@@ -74,6 +74,7 @@ def _good_body(authority: str = "AGENTS 9") -> str:
 # schema - the prevention layer
 # ---------------------------------------------------------------------------
 
+
 def test_a_well_formed_page_passes(store: Path) -> None:
     _page(store, "good", _good_body())
 
@@ -82,9 +83,7 @@ def test_a_well_formed_page_passes(store: Path) -> None:
 
 @pytest.mark.parametrize("missing", ["Fact", "Why", "Authority"])
 def test_every_field_is_required(store: Path, missing: str) -> None:
-    body = "\n\n".join(
-        f"**{f}:** value" for f in ("Fact", "Why", "Authority") if f != missing
-    )
+    body = "\n\n".join(f"**{f}:** value" for f in ("Fact", "Why", "Authority") if f != missing)
     _page(store, "partial", body)
 
     findings = memory_lint.check_schema(memory_lint.discover_pages(store), CAP).findings
@@ -133,12 +132,11 @@ def test_reviewed_pages_are_not_exempt_from_the_cap(store: Path) -> None:
 # authority - the check that replaced the heuristics
 # ---------------------------------------------------------------------------
 
+
 def test_real_authorities_resolve(store: Path, repo: Path) -> None:
     _page(store, "ok", _good_body("AGENTS 7, ADR-0008, skills/crystallize"))
 
-    result = memory_lint.check_authority(
-        memory_lint.discover_pages(store), repo, repo / "skills", {}
-    )
+    result = memory_lint.check_authority(memory_lint.discover_pages(store), repo, repo / "skills", {})
 
     assert not result.findings
 
@@ -146,9 +144,7 @@ def test_real_authorities_resolve(store: Path, repo: Path) -> None:
 def test_a_nonexistent_adr_is_an_error(store: Path, repo: Path) -> None:
     _page(store, "bad", _good_body("ADR-0099"))
 
-    findings = memory_lint.check_authority(
-        memory_lint.discover_pages(store), repo, repo / "skills", {}
-    ).findings
+    findings = memory_lint.check_authority(memory_lint.discover_pages(store), repo, repo / "skills", {}).findings
 
     assert any("ADR-0099, which does not exist" in f.message for f in findings)
 
@@ -157,9 +153,7 @@ def test_a_nonexistent_agents_section_is_an_error(store: Path, repo: Path) -> No
     """The WSL failure in one line: memory cited a rule; nobody checked the rule was there."""
     _page(store, "bad", _good_body("AGENTS 47"))
 
-    findings = memory_lint.check_authority(
-        memory_lint.discover_pages(store), repo, repo / "skills", {}
-    ).findings
+    findings = memory_lint.check_authority(memory_lint.discover_pages(store), repo, repo / "skills", {}).findings
 
     assert any("section 47, which does not exist" in f.message for f in findings)
 
@@ -167,9 +161,7 @@ def test_a_nonexistent_agents_section_is_an_error(store: Path, repo: Path) -> No
 def test_a_nonexistent_skill_is_an_error(store: Path, repo: Path) -> None:
     _page(store, "bad", _good_body("skills/ghost"))
 
-    findings = memory_lint.check_authority(
-        memory_lint.discover_pages(store), repo, repo / "skills", {}
-    ).findings
+    findings = memory_lint.check_authority(memory_lint.discover_pages(store), repo, repo / "skills", {}).findings
 
     assert any("`ghost`, which is not in the registry" in f.message for f in findings)
 
@@ -183,9 +175,7 @@ def test_domain_gotchas_may_declare_no_authority(store: Path, repo: Path) -> Non
         "**Authority:** none (domain gotcha)",
     )
 
-    assert not memory_lint.check_authority(
-        memory_lint.discover_pages(store), repo, repo / "skills", {}
-    ).findings
+    assert not memory_lint.check_authority(memory_lint.discover_pages(store), repo, repo / "skills", {}).findings
 
 
 def test_a_decision_may_not_claim_to_be_a_gotcha(store: Path, repo: Path) -> None:
@@ -193,13 +183,10 @@ def test_a_decision_may_not_claim_to_be_a_gotcha(store: Path, repo: Path) -> Non
     _page(
         store,
         "sneaky",
-        "**Fact:** We approved the new layout.\n\n**Why:** Phil decided.\n\n"
-        "**Authority:** none (domain gotcha)",
+        "**Fact:** We approved the new layout.\n\n**Why:** Phil decided.\n\n**Authority:** none (domain gotcha)",
     )
 
-    findings = memory_lint.check_authority(
-        memory_lint.discover_pages(store), repo, repo / "skills", {}
-    ).findings
+    findings = memory_lint.check_authority(memory_lint.discover_pages(store), repo, repo / "skills", {}).findings
 
     assert any("a decision is not a domain gotcha" in f.message for f in findings)
 
@@ -207,9 +194,7 @@ def test_a_decision_may_not_claim_to_be_a_gotcha(store: Path, repo: Path) -> Non
 def test_an_unresolvable_authority_is_flagged(store: Path, repo: Path) -> None:
     _page(store, "vague", _good_body("because I said so"))
 
-    findings = memory_lint.check_authority(
-        memory_lint.discover_pages(store), repo, repo / "skills", {}
-    ).findings
+    findings = memory_lint.check_authority(memory_lint.discover_pages(store), repo, repo / "skills", {}).findings
 
     assert any("not a resolvable reference" in f.message for f in findings)
 
@@ -217,6 +202,7 @@ def test_an_unresolvable_authority_is_flagged(store: Path, repo: Path) -> None:
 # ---------------------------------------------------------------------------
 # integrity
 # ---------------------------------------------------------------------------
+
 
 def test_orphan_page_is_an_error(store: Path) -> None:
     _page(store, "alpha", _good_body())
@@ -269,6 +255,7 @@ def test_bad_metadata_type_is_flagged(store: Path) -> None:
 # ---------------------------------------------------------------------------
 # skills registry
 # ---------------------------------------------------------------------------
+
 
 def test_skill_dir_without_skill_md_is_an_error(tmp_path: Path) -> None:
     """The live registry had exactly this: BMAD replaced two skills and orphaned their subdirs."""
