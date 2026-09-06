@@ -91,8 +91,10 @@ export function computeSyncStage({
 }
 
 export class BackgroundCollectorService {
-  constructor() {
-    this.pollIntervalMs = 5000; // 5 seconds polling
+  constructor(options = {}) {
+    this.pollIntervalMs = options.pollIntervalMs || 5000; // 5 seconds polling
+    this.bridgeUrl = options.bridgeUrl || BRIDGE_URL;
+    this.kaspadRpcUrl = options.kaspadRpcUrl || KASPAD_RPC_URL;
     this.timer = null;
     this.last1mRollup = Date.now();
     this.last15mRollup = Date.now();
@@ -183,7 +185,7 @@ export class BackgroundCollectorService {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
     try {
-      const res = await fetch(KASPAD_RPC_URL, {
+      const res = await fetch(this.kaspadRpcUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
@@ -204,7 +206,7 @@ export class BackgroundCollectorService {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
     try {
-      const res = await fetch(`${BRIDGE_URL}${endpoint}`, {
+      const res = await fetch(`${this.bridgeUrl}${endpoint}`, {
         signal: controller.signal,
       });
       clearTimeout(timeout);

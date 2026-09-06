@@ -1,5 +1,5 @@
 # generated: 2026-09-06T13:51:00Z
-# last_updated: 2026-09-06T07:30:54Z
+# last_updated: 2026-09-06T07:43:11Z
 # project: Kaspa Solo Mining Suite
 # project_key: NOKEY
 # tracking_system: file-system
@@ -20,7 +20,7 @@
 #   - done: Story completed
 
 generated: 2026-09-06T13:51:00Z
-last_updated: 2026-09-06T07:30:54Z
+last_updated: 2026-09-06T07:43:11Z
 project: Kaspa Solo Mining Suite
 project_key: NOKEY
 tracking_system: file-system
@@ -32,7 +32,8 @@ development_status:
   1-2-multi-stage-initial-block-download-ibd-telemetry-visualizer: done
   1-3-dual-asic-stratum-connection-point-quick-copy: done
   epic-1-retrospective: done
-  epic-2: backlog
+  epic-2: in-progress
+  2-1-autonomous-server-side-telemetry-collector: done
   epic-2-retrospective: optional
   epic-3: backlog
   epic-3-retrospective: optional
