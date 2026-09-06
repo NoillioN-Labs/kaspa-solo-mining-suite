@@ -1,5 +1,5 @@
 # generated: 2026-09-06T13:51:00Z
-# last_updated: 2026-09-06T08:11:50Z
+# last_updated: 2026-09-06T08:29:15Z
 # project: Kaspa Solo Mining Suite
 # project_key: NOKEY
 # tracking_system: file-system
@@ -20,7 +20,7 @@
 #   - done: Story completed
 
 generated: 2026-09-06T13:51:00Z
-last_updated: 2026-09-06T08:11:50Z
+last_updated: 2026-09-06T08:29:15Z
 project: Kaspa Solo Mining Suite
 project_key: NOKEY
 tracking_system: file-system
@@ -38,8 +38,9 @@ development_status:
   2-3-mobile-responsive-worker-fleet-table: done
   2-4-hardware-tuning-presets-vardiff: done
   epic-2-retrospective: done
-  epic-3: in-progress
+  epic-3: done
   3-1-block-discovery-event-celebration: done
-  epic-3-retrospective: optional
-  epic-4: backlog
+  3-2-permanent-mined-blocks-ledger: done
+  epic-3-retrospective: done
+  epic-4: in-progress
   epic-4-retrospective: optional

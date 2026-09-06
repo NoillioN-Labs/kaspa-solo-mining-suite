@@ -3,7 +3,6 @@ Automated unit & regression tests for Story 2.2:
 Reactive Overview Dashboard & 10 BPS GHOSTDAG Canvas Visualizer
 """
 
-import re
 from pathlib import Path
 
 WEB_SRC_DIR = Path(__file__).parent.parent / "web" / "src"
@@ -56,7 +55,7 @@ def test_hashrate_trend_chart():
     assert "<svg" in app_jsx
     assert "linearGradient" in app_jsx
     assert "hashrate-grad" in app_jsx
-    assert "fill=\"url(#hashrate-grad)\"" in app_jsx
+    assert 'fill="url(#hashrate-grad)"' in app_jsx
 
 
 def test_server_stats_endpoint_includes_24h_metrics():

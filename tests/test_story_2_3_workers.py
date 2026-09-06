@@ -84,4 +84,3 @@ def test_server_and_collector_workers_mapping():
     assert "invalid" in collector_js
     assert "ping" in collector_js
     assert "effort" in collector_js
-

@@ -457,17 +457,17 @@ export class BackgroundCollectorService {
   }
 
   resetData() {
-    console.log('[COLLECTOR] Executing telemetry reset: wiping 24h, 30d, 6m history and share stats');
+    console.log('[COLLECTOR] Executing telemetry reset: wiping 24h, 30d, 6m history and share stats (preserving permanent minedBlocks)');
     this.state.history24h = [];
     this.state.history30d = [];
     this.state.history6m = [];
-    this.state.minedBlocks = [];
+    // Mined Blocks Ledger is permanent per AD-5 and strictly preserved across resets
     this.rawBuffer = [];
     this.state.live.acceptedShares = 0;
     this.state.live.staleShares = 0;
     this.state.live.invalidShares = 0;
     this.saveStorage();
-    return { success: true, message: 'All historical mining telemetry has been wiped.' };
+    return { success: true, message: 'Historical mining telemetry has been wiped. Mined Blocks Ledger is permanently preserved.' };
   }
 
   recordBlockFound(hash, reward = 100) {

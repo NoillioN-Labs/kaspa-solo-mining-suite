@@ -478,46 +478,230 @@ function HealthMonitor({ setAlerts }) {
   );
 }
 
-function RewardsChart() {
-  const [data, setData] = useState([]);
+export function MinedBlocksLedger({ blocks: propBlocks }) {
+  const [blocks, setBlocks] = useState(propBlocks || []);
 
   useEffect(() => {
-    fetch('/api/rewards')
-      .then(res => res.json())
-      .then(setData)
-      .catch(console.error);
-  }, []);
+    if (propBlocks) {
+      setBlocks(propBlocks);
+      return;
+    }
+    const fetchBlocks = async () => {
+      try {
+        const res = await fetch('/api/rewards');
+        const data = await res.json();
+        if (Array.isArray(data)) setBlocks(data);
+      } catch (err) {
+        console.error("Failed to fetch mined blocks", err);
+      }
+    };
+    fetchBlocks();
+    const int = setInterval(fetchBlocks, 10000);
+    return () => clearInterval(int);
+  }, [propBlocks]);
 
-  if (data.length === 0) return <div>Loading...</div>;
-
-  const maxTotal = Math.max(...data.map(d => d.total));
+  if (!blocks || blocks.length === 0) {
+    return (
+      <div className="card" style={{ marginTop: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 className="card-title" style={{ marginBottom: 0 }}>Mined Blocks Ledger (0 Discovered)</h3>
+        </div>
+        <div style={{
+          padding: '36px 20px',
+          textAlign: 'center',
+          backgroundColor: '#0A0A0C',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px dashed var(--bg-surface-hover)',
+        }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '8px' }}>
+            No blocks mined yet. Active mining on port 55555 will record solved blocks here permanently.
+          </p>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            All discovered blocks are permanently preserved across historical data purges (AD-5).
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card" style={{ marginTop: '24px' }}>
-      <h3 className="card-title">Reward Composition</h3>
-      <div style={{ display: 'flex', alignItems: 'flex-end', height: '200px', gap: '8px', paddingTop: '20px' }}>
-        {data.map((day, i) => {
-          const subsidyPct = (day.subsidy / maxTotal) * 100;
-          const feesPct = (day.fees / maxTotal) * 100;
-          const dagPct = (day.dag / maxTotal) * 100;
-          const totalStr = `Date: ${day.date}\nTotal: ${day.total.toFixed(2)} KAS\nSubsidy: ${day.subsidy.toFixed(2)}\nFees: ${day.fees.toFixed(2)}\nDAG: ${day.dag.toFixed(2)}`;
-
-          return (
-            <div key={i} title={totalStr} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', cursor: 'help' }}>
-              <div style={{ height: `${dagPct}%`, backgroundColor: '#34D399' }}></div>
-              <div style={{ height: `${feesPct}%`, backgroundColor: '#FCD34D' }}></div>
-              <div style={{ height: `${subsidyPct}%`, backgroundColor: 'var(--kaspa-teal)' }}></div>
-              <div style={{ textAlign: 'center', fontSize: '0.7rem', marginTop: '4px', color: 'var(--text-secondary)' }}>
-                {day.date.slice(5)}
-              </div>
-            </div>
-          );
-        })}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 className="card-title" style={{ marginBottom: 0 }}>
+          Mined Blocks Ledger ({blocks.length} Permanent {blocks.length === 1 ? 'Record' : 'Records'})
+        </h3>
+        <span style={{
+          fontSize: '0.75rem',
+          color: '#34D399',
+          fontWeight: 600,
+          backgroundColor: 'rgba(52, 211, 153, 0.15)',
+          padding: '3px 8px',
+          borderRadius: '10px',
+          border: '1px solid rgba(52, 211, 153, 0.3)'
+        }}>
+          🔒 Permanent Storage
+        </span>
       </div>
-      <div style={{ display: 'flex', gap: '16px', marginTop: '16px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{width:'12px', height:'12px', backgroundColor:'var(--kaspa-teal)'}}></div> Subsidy</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{width:'12px', height:'12px', backgroundColor:'#FCD34D'}}></div> Fees</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{width:'12px', height:'12px', backgroundColor:'#34D399'}}></div> DAG</div>
+
+      {/* Desktop Table View (UX-DR11) */}
+      <div className="worker-table-desktop table-responsive">
+        <table className="worker-table">
+          <thead>
+            <tr>
+              <th>Timestamp & Blue Score</th>
+              <th>Winning Worker</th>
+              <th>Round Effort</th>
+              <th>Reward (Subsidy + Fees)</th>
+              <th>Status</th>
+              <th>Block Hash / Explorer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {blocks.map((b, idx) => {
+              const timeStr = b.timestamp ? new Date(b.timestamp).toLocaleString() : 'Recent';
+              const effort = Number(b.effort || 0);
+              const isLucky = effort < 100;
+              const rewardKas = Number(b.reward || b.total || 0).toFixed(2);
+              const subsidyKas = Number(b.subsidy || b.reward || 0).toFixed(2);
+              const feesKas = Number(b.fees || 0).toFixed(2);
+              const usdVal = b.usdValue ? `$${Number(b.usdValue).toFixed(2)}` : null;
+
+              return (
+                <tr key={b.hash || idx}>
+                  <td>
+                    <div style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{timeStr}</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontFamily: "'Fira Code', monospace" }}>
+                      Score: {b.blueScore ? b.blueScore.toLocaleString() : 'Confirmed'}
+                    </div>
+                  </td>
+                  <td>
+                    <strong style={{ color: 'var(--kaspa-teal)', fontFamily: "'Fira Code', monospace" }}>
+                      {b.worker || 'Active Miner'}
+                    </strong>
+                  </td>
+                  <td>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '3px 8px',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      fontFamily: "'Fira Code', monospace",
+                      backgroundColor: isLucky ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                      color: isLucky ? '#10B981' : '#F59E0B',
+                      border: `1px solid ${isLucky ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+                    }}>
+                      {effort}% {isLucky ? '(Lucky)' : ''}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ fontFamily: "'Fira Code', monospace", fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {rewardKas} KAS {usdVal && <span style={{ color: 'var(--text-secondary)', fontWeight: 400, fontSize: '0.8rem' }}>({usdVal})</span>}
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontFamily: "'Fira Code', monospace" }}>
+                      Sub: {subsidyKas} + Fee: {feesKas}
+                    </div>
+                  </td>
+                  <td>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                      color: '#34D399',
+                      border: '1px solid rgba(52, 211, 153, 0.3)'
+                    }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#34D399' }} />
+                      Tip Confirmed
+                    </span>
+                  </td>
+                  <td>
+                    <a
+                      href={`https://explorer.kaspa.org/blocks/${b.hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={b.hash}
+                      style={{
+                        fontFamily: "'Fira Code', monospace",
+                        fontSize: '0.8rem',
+                        color: 'var(--kaspa-teal)',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <span>{b.hash ? `${b.hash.slice(0, 10)}...${b.hash.slice(-8)}` : 'Explorer'}</span>
+                      <span style={{ fontSize: '0.7rem' }}>↗</span>
+                    </a>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Stacked Cards View (UX-DR3, UX-DR11) */}
+      <div className="worker-cards-mobile">
+        {blocks.map((b, idx) => (
+          <div key={b.hash || idx} style={{
+            backgroundColor: '#0A0A0C',
+            padding: '14px',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--bg-surface-hover)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                {b.timestamp ? new Date(b.timestamp).toLocaleDateString() : 'Recent'}
+              </span>
+              <span style={{
+                color: '#34D399',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                padding: '2px 6px',
+                borderRadius: '8px'
+              }}>
+                Confirmed
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Worker / Effort:</span>
+              <span style={{ fontFamily: "'Fira Code', monospace" }}>
+                {b.worker || 'Miner'} ({b.effort || 100}%)
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '8px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Reward:</span>
+              <strong style={{ color: 'var(--kaspa-teal)', fontFamily: "'Fira Code', monospace" }}>
+                {Number(b.reward || 0).toFixed(2)} KAS
+              </strong>
+            </div>
+            <a
+              href={`https://explorer.kaspa.org/blocks/${b.hash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                padding: '6px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--kaspa-teal)',
+                fontSize: '0.8rem',
+                fontFamily: "'Fira Code', monospace",
+                textDecoration: 'none'
+              }}
+            >
+              View on Kaspa Explorer ↗
+            </a>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -556,46 +740,7 @@ function ProfitabilityWidget() {
   );
 }
 
-function BlockCelebration({ onComplete }) {
-  useEffect(() => {
-    const timer = setTimeout(onComplete, 4000);
-    return () => clearTimeout(timer);
-  }, [onComplete]);
 
-  return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      pointerEvents: 'none', zIndex: 9999, display: 'flex',
-      alignItems: 'center', justifyContent: 'center',
-      backgroundColor: 'rgba(112, 199, 186, 0.2)'
-    }}>
-      <style>{`
-        @keyframes float-up {
-          0% { transform: translateY(100vh) scale(0.5); opacity: 1; }
-          100% { transform: translateY(-20vh) scale(1.5); opacity: 0; }
-        }
-        .kaspa-coin {
-          position: absolute;
-          width: 60px; height: 60px;
-          background-color: var(--kaspa-teal);
-          border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          color: #000; font-weight: bold; font-size: 24px;
-          animation: float-up 3s ease-out forwards;
-        }
-      `}</style>
-      <div style={{ fontSize: '4rem', color: 'var(--kaspa-teal)', fontWeight: 'bold', textShadow: '0 0 20px rgba(112,199,186,0.8)' }}>
-        BLOCK FOUND!
-      </div>
-      {Array.from({length: 20}).map((_, i) => (
-        <div key={i} className="kaspa-coin" style={{
-          left: `${Math.random() * 100}vw`,
-          animationDelay: `${Math.random() * 0.5}s`
-        }}>K</div>
-      ))}
-    </div>
-  );
-}
 
 export function formatEta(seconds) {
   if (seconds === null || seconds === undefined || seconds <= 0) return 'Calculating...';
@@ -1720,7 +1865,7 @@ function App() {
         <HealthMonitor setAlerts={setAlerts} />
         
         <ProfitabilityWidget />
-        <RewardsChart />
+        <MinedBlocksLedger />
         
         <LogViewer />
       </main>

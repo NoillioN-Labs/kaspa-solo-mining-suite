@@ -36,6 +36,7 @@ venv.bak/
 
 # Node
 node_modules/
+web/dist/
 
 # Environment Variables
 .env

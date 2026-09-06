@@ -63,9 +63,7 @@ def main() -> int:
         pass
 
     detail = "; ".join(errors) if errors else "run scripts/utilities/governance_lint.py for details"
-    sys.stderr.write(
-        f"governance_lint found ERRORs — resolve before finishing: {detail}"
-    )
+    sys.stderr.write(f"governance_lint found ERRORs — resolve before finishing: {detail}")
     return 2
 
 

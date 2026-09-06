@@ -129,4 +129,3 @@ def test_frontend_sync_components_and_formatting():
     assert "Stage 2: DAA Header Catchup" in content
     assert "Synchronized (10 BPS)" in content
     assert "Mining Active" in content
-
