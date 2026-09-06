@@ -352,6 +352,182 @@ export function PresetSelector() {
   );
 }
 
+export function DangerZone({ onResetComplete }) {
+  const [showModal, setShowModal] = useState(false);
+  const [confirmedRisk, setConfirmedRisk] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const handleReset = async () => {
+    setResetting(true);
+    try {
+      const res = await fetch('/api/data/reset', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setNotice(data.message || 'Historical telemetry has been reset. Mined Blocks Ledger preserved.');
+        setShowModal(false);
+        setConfirmedRisk(false);
+        if (onResetComplete) onResetComplete();
+      }
+    } catch (err) {
+      console.error("Reset failed", err);
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  return (
+    <div style={{
+      marginTop: '28px',
+      paddingTop: '20px',
+      borderTop: '1px solid rgba(239, 68, 68, 0.25)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              color: '#EF4444',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              border: '1px solid rgba(239, 68, 68, 0.3)'
+            }}>
+              Danger Zone
+            </span>
+            <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+              Historical Telemetry & Chart Reset
+            </strong>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px', maxWidth: '600px' }}>
+            Wipes 24h, 30d, and 6m historical rollup curves. Discovered blocks in the Mined Blocks Ledger and active Stratum mining on port 55555 are permanently preserved (AD-5, AD-6).
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowModal(true)}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            color: '#EF4444',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          Reset Historical Data
+        </button>
+      </div>
+
+      {notice && (
+        <div style={{
+          marginTop: '12px',
+          padding: '10px 14px',
+          borderRadius: 'var(--radius-sm)',
+          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+          border: '1px solid #10B981',
+          color: '#A7F3D0',
+          fontSize: '0.85rem'
+        }}>
+          ✓ {notice}
+        </div>
+      )}
+
+      {/* Double Confirmation Modal (AD-6) */}
+      {showModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ maxWidth: '480px', width: '100%', border: '1px solid #EF4444' }}>
+            <h3 style={{ color: '#EF4444', marginBottom: '12px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              ⚠️ Erase Historical Mining Telemetry?
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.5', marginBottom: '16px' }}>
+              This will permanently delete all downsampled hashrate charts (24-hour, 30-day, and 6-month historical rollups) and reset live share counters.
+            </p>
+
+            <div style={{
+              backgroundColor: '#0A0A0C',
+              padding: '12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--bg-surface-hover)',
+              marginBottom: '16px',
+              fontSize: '0.8rem',
+              color: 'var(--text-secondary)',
+              lineHeight: '1.4'
+            }}>
+              <div style={{ color: '#10B981', fontWeight: 600, marginBottom: '4px' }}>
+                ✓ Protected Invariants:
+              </div>
+              • Active Stratum mining connections on port 55555 remain connected.<br/>
+              • Mined Blocks Ledger is permanent and will NOT be erased (AD-5).
+            </div>
+
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              cursor: 'pointer',
+              marginBottom: '20px',
+              fontSize: '0.85rem',
+              color: 'var(--text-primary)'
+            }}>
+              <input
+                type="checkbox"
+                checked={confirmedRisk}
+                onChange={(e) => setConfirmedRisk(e.target.checked)}
+                style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#EF4444' }}
+              />
+              <span>I understand that historical telemetry curves will be erased.</span>
+            </label>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                onClick={() => { setShowModal(false); setConfirmedRisk(false); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--bg-surface-hover)',
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={!confirmedRisk || resetting}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: confirmedRisk ? '#EF4444' : '#6B7280',
+                  color: '#FFF',
+                  border: 'none',
+                  fontWeight: 700,
+                  cursor: confirmedRisk && !resetting ? 'pointer' : 'not-allowed',
+                  opacity: confirmedRisk && !resetting ? 1 : 0.6
+                }}
+              >
+                {resetting ? 'Wiping...' : 'Confirm Reset Telemetry'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LogViewer() {
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -2149,6 +2325,8 @@ function App() {
           </div>
           
           <PresetSelector />
+          {/* Story 4.3: Danger Zone Historical Telemetry Reset & Safety Gate */}
+          <DangerZone />
         </div>
 
         {/* Story 1.2: Multi-Stage IBD Progress Card */}
