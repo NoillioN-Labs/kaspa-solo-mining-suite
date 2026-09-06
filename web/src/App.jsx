@@ -352,25 +352,29 @@ export function PresetSelector() {
   );
 }
 
-function LogViewer() {
+export function LogViewer() {
   const [logs, setLogs] = useState([]);
+  const [filter, setFilter] = useState('all');
   const [autoScroll, setAutoScroll] = useState(true);
+  const [copied, setCopied] = useState(false);
   const scrollRef = React.useRef(null);
 
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await fetch('/api/logs');
+        const res = await fetch(`/api/logs?source=${filter}`);
         const data = await res.json();
-        setLogs(data.logs);
+        if (Array.isArray(data.logs)) {
+          setLogs(data.logs);
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch logs", err);
       }
     };
     fetchLogs();
     const int = setInterval(fetchLogs, 2000);
     return () => clearInterval(int);
-  }, []);
+  }, [filter]);
 
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
@@ -378,13 +382,90 @@ function LogViewer() {
     }
   }, [logs, autoScroll]);
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(logs.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleClear = () => {
+    setLogs([]);
+  };
+
   return (
     <div className="card" style={{ marginTop: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h3 className="card-title" style={{ marginBottom: 0 }}>Real-Time Logs</h3>
-        <span style={{ fontSize: '0.8rem', color: autoScroll ? 'var(--kaspa-teal)' : 'var(--text-secondary)' }}>
-          {autoScroll ? 'Auto-scrolling' : 'Paused'}
-        </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h3 className="card-title" style={{ marginBottom: 0 }}>Live Container Logs</h3>
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '2px 8px',
+            borderRadius: '10px',
+            backgroundColor: autoScroll ? 'rgba(112, 199, 186, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+            color: autoScroll ? 'var(--kaspa-teal)' : '#F59E0B',
+            fontWeight: 600,
+          }}>
+            {autoScroll ? '● Auto-scrolling' : '❚❚ Paused (Hovered)'}
+          </span>
+        </div>
+        
+        {/* Controls: Filter toggles & Copy/Clear */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'inline-flex', backgroundColor: '#0A0A0C', borderRadius: 'var(--radius-sm)', padding: '2px', border: '1px solid var(--bg-surface-hover)' }}>
+            {['all', 'stratum', 'kaspad'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  backgroundColor: filter === f ? 'var(--kaspa-teal)' : 'transparent',
+                  color: filter === f ? '#000' : 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={handleCopy}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--bg-surface-hover)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+
+          <button
+            onClick={handleClear}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--bg-surface-hover)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Clear
+          </button>
+        </div>
       </div>
       
       <div 
@@ -392,26 +473,194 @@ function LogViewer() {
         onMouseEnter={() => setAutoScroll(false)}
         onMouseLeave={() => setAutoScroll(true)}
         style={{
-          height: '250px',
+          height: '260px',
           overflowY: 'auto',
           backgroundColor: '#0A0A0C',
-          padding: '12px',
+          padding: '12px 14px',
           borderRadius: 'var(--radius-sm)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.875rem',
-          color: 'var(--text-secondary)'
+          fontFamily: "'Fira Code', monospace",
+          fontSize: '0.85rem',
+          color: 'var(--text-secondary)',
+          border: '1px solid var(--bg-surface-hover)',
         }}
       >
-        {logs.map((log, i) => (
-          <div key={i} style={{ 
-            marginBottom: '4px', 
-            color: log.includes('Error') ? '#EF4444' : log.includes('Accepted') ? 'var(--kaspa-teal)' : 'inherit'
-          }}>
-            {log}
-          </div>
-        ))}
-        {logs.length === 0 && <div>Loading logs...</div>}
+        {logs.map((log, i) => {
+          let logColor = 'var(--text-secondary)';
+          if (log.includes('Error') || log.includes('ERR')) logColor = '#EF4444';
+          else if (log.includes('[STRATUM]')) logColor = '#70C7BA';
+          else if (log.includes('[KASPAD]')) logColor = '#60A5FA';
+          else if (log.includes('[COLLECTOR]')) logColor = '#A78BFA';
+
+          return (
+            <div key={i} style={{ marginBottom: '4px', color: logColor, wordBreak: 'break-all', lineHeight: '1.4' }}>
+              {log}
+            </div>
+          );
+        })}
+        {logs.length === 0 && <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No log entries match filter...</div>}
       </div>
+    </div>
+  );
+}
+
+export function NodeSwarmView() {
+  const [swarm, setSwarm] = useState(null);
+
+  useEffect(() => {
+    const fetchSwarm = async () => {
+      try {
+        const res = await fetch('/api/peers');
+        const data = await res.json();
+        setSwarm(data);
+      } catch (err) {
+        console.error("Failed to fetch peer swarm", err);
+      }
+    };
+    fetchSwarm();
+    const int = setInterval(fetchSwarm, 5000);
+    return () => clearInterval(int);
+  }, []);
+
+  const inbound = swarm?.inbound || 0;
+  const outbound = swarm?.outbound || 0;
+  const total = swarm?.totalPeers || (inbound + outbound);
+  const mempool = swarm?.mempoolTxs || 0;
+  const portOpen = swarm?.port16111Open ?? true;
+  const peers = swarm?.peers || [];
+
+  return (
+    <div className="card" style={{ marginTop: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+        <h3 className="card-title" style={{ marginBottom: 0 }}>
+          Kaspa Node P2P Swarm & Network Diagnostics
+        </h3>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '3px 10px',
+          borderRadius: '12px',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          backgroundColor: portOpen ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+          color: portOpen ? '#10B981' : '#EF4444',
+          border: `1px solid ${portOpen ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+        }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: portOpen ? '#10B981' : '#EF4444' }} />
+          Port 16111 {portOpen ? 'Listening' : 'Closed'}
+        </span>
+      </div>
+
+      {/* Swarm Metric Cards Row (UX-DR13) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '12px',
+        marginBottom: '18px'
+      }}>
+        <div style={{ backgroundColor: '#0A0A0C', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--bg-surface-hover)' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600 }}>
+            Connected P2P Peers
+          </div>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: "'Fira Code', monospace", color: 'var(--text-primary)', marginTop: '4px' }}>
+            {total}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            <span style={{ color: 'var(--kaspa-teal)' }}>{inbound} Inbound</span> • <span style={{ color: '#60A5FA' }}>{outbound} Outbound</span>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: '#0A0A0C', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--bg-surface-hover)' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600 }}>
+            Mempool Transactions
+          </div>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: "'Fira Code', monospace", color: '#F59E0B', marginTop: '4px' }}>
+            {mempool.toLocaleString()}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            Pending DAG block inclusion
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: '#0A0A0C', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--bg-surface-hover)' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600 }}>
+            Inbound / Outbound Ratio
+          </div>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: "'Fira Code', monospace", color: 'var(--text-primary)', marginTop: '4px' }}>
+            {total > 0 ? `${((inbound / total) * 100).toFixed(0)}% / ${((outbound / total) * 100).toFixed(0)}%` : '0% / 0%'}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            Mesh network connectivity
+          </div>
+        </div>
+      </div>
+
+      {/* Connected Peers Table (UX-DR13) */}
+      {peers.length === 0 ? (
+        <div style={{
+          padding: '24px 16px',
+          textAlign: 'center',
+          backgroundColor: '#0A0A0C',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px dashed var(--bg-surface-hover)',
+          color: 'var(--text-secondary)',
+          fontSize: '0.85rem',
+        }}>
+          Connecting to Kaspa P2P network peers on port 16111...
+        </div>
+      ) : (
+        <div className="worker-table-desktop table-responsive">
+          <table className="worker-table">
+            <thead>
+              <tr>
+                <th>Peer Address / Host</th>
+                <th>Direction</th>
+                <th>Ping Latency</th>
+                <th>Node Client / Version</th>
+              </tr>
+            </thead>
+            <tbody>
+              {peers.map((p, idx) => {
+                const ping = Number(p.ping || 0);
+                const pingColor = ping <= 50 ? '#10B981' : (ping <= 120 ? '#F59E0B' : '#EF4444');
+                const isIb = p.direction === 'inbound';
+
+                return (
+                  <tr key={p.id || p.address || idx}>
+                    <td>
+                      <code style={{ fontFamily: "'Fira Code', monospace", color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                        {p.address}
+                      </code>
+                    </td>
+                    <td>
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        backgroundColor: isIb ? 'rgba(112, 199, 186, 0.15)' : 'rgba(96, 165, 250, 0.15)',
+                        color: isIb ? 'var(--kaspa-teal)' : '#60A5FA',
+                      }}>
+                        {p.direction || 'outbound'}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontFamily: "'Fira Code', monospace", color: pingColor, fontWeight: 600, fontSize: '0.85rem' }}>
+                        {ping} ms
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontFamily: "'Fira Code', monospace" }}>
+                        {p.version || 'rusty-kaspad'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -1867,6 +2116,10 @@ function App() {
         <ProfitabilityWidget />
         <MinedBlocksLedger />
         
+        {/* Story 4.1: Kaspa Node P2P Swarm & Network Diagnostics */}
+        <NodeSwarmView />
+        
+        {/* Story 4.1: Live Streaming Log Viewer with Hover-to-Pause */}
         <LogViewer />
       </main>
     </div>

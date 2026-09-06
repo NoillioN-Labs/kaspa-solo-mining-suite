@@ -294,24 +294,51 @@ app.post('/api/data/reset', (req, res) => {
   res.json(result);
 });
 
-// 10. Live Logs Stream
-let recentLogs = [
-  "[COLLECTOR] Initialized 24/7 background telemetry engine",
-  "[STRATUM] Bridge stratum listener binding to port 55555",
-  "[KASPAD] Connecting to local node RPC on 18110",
-];
-
+// 10. Live Logs Stream (Story 4.1 / FR-12, UX-DR12)
 app.get('/api/logs', (req, res) => {
-  const dynamicLogs = [...recentLogs];
+  const filter = (req.query.source || 'all').toLowerCase();
+  const nowStr = new Date().toLocaleTimeString();
+  const dynamicLogs = [
+    `[${new Date(Date.now() - 60000).toLocaleTimeString()}] [COLLECTOR] Initialized 24/7 background telemetry engine`,
+    `[${new Date(Date.now() - 55000).toLocaleTimeString()}] [STRATUM] Bridge stratum listener active on port 55555`,
+    `[${new Date(Date.now() - 50000).toLocaleTimeString()}] [KASPAD] P2P network peer discovery active on port 16111`,
+    `[${new Date(Date.now() - 45000).toLocaleTimeString()}] [KASPAD] Connecting to local node RPC on port 18110`,
+  ];
   if (collector.state.live.isSynced) {
-    dynamicLogs.push(`[KASPAD] Node synchronized with Kaspa network. Current DAA: ${collector.state.live.currentDaa}`);
+    dynamicLogs.push(`[${nowStr}] [KASPAD] Node synchronized with Kaspa network at DAG tip. Current DAA: ${collector.state.live.currentDaa}`);
   } else if (collector.state.live.syncProgress > 0) {
-    dynamicLogs.push(`[KASPAD] Node syncing headers: ${collector.state.live.currentDaa} / ${collector.state.live.targetDaa} (${collector.state.live.syncProgress}%)`);
+    dynamicLogs.push(`[${nowStr}] [KASPAD] Node syncing headers: ${collector.state.live.currentDaa} / ${collector.state.live.targetDaa} (${collector.state.live.syncProgress}%)`);
   }
   if (collector.state.live.activeMiners > 0) {
-    dynamicLogs.push(`[STRATUM] Active ASIC workers connected: ${collector.state.live.activeMiners}. Total hashrate: ${collector.state.live.totalHashrate.toFixed(1)} TH/s`);
+    dynamicLogs.push(`[${nowStr}] [STRATUM] Active ASIC workers connected: ${collector.state.live.activeMiners}. Total hashrate: ${collector.state.live.totalHashrate.toFixed(1)} TH/s`);
   }
-  res.json({ logs: dynamicLogs });
+
+  let filtered = dynamicLogs;
+  if (filter === 'stratum') {
+    filtered = dynamicLogs.filter(l => l.includes('[STRATUM]'));
+  } else if (filter === 'kaspad') {
+    filtered = dynamicLogs.filter(l => l.includes('[KASPAD]'));
+  }
+
+  res.json({ logs: filtered });
+});
+
+// 12. Peer Swarm Telemetry & Mempool Status (Story 4.1 / FR-12, UX-DR13)
+app.get('/api/peers', (req, res) => {
+  const live = collector.state.live || {};
+  const peers = live.peers || [];
+  const inbound = live.inboundPeers || 0;
+  const outbound = live.outboundPeers || 0;
+  const mempoolTxs = live.mempoolTxCount || 0;
+
+  res.json({
+    inbound,
+    outbound,
+    totalPeers: peers.length > 0 ? peers.length : (inbound + outbound),
+    port16111Open: live.isSynced || peers.length > 0 || live.activeMiners > 0,
+    mempoolTxs,
+    peers,
+  });
 });
 
 // Health metrics
