@@ -240,17 +240,27 @@ export class BackgroundCollectorService {
     }
 
     if (Array.isArray(bridgeWorkers)) {
-      workersList = bridgeWorkers.map((w) => ({
-        id: w.id || w.name || 'Worker',
-        name: w.name || w.worker || 'Worker',
-        ip: w.ip || w.clientIp || '127.0.0.1',
-        hashrate: Number(w.hashrate || 0),
-        difficulty: Number(w.difficulty || w.diff || 1),
-        shares: Number(w.accepted || w.shares || 0),
-        effort: Number(w.effort || 0),
-        status: w.connected ? 'online' : 'idle',
-        lastShare: w.lastShare ? new Date(w.lastShare).toISOString() : new Date().toISOString(),
-      }));
+      workersList = bridgeWorkers.map((w) => {
+        const accepted = Number(w.accepted ?? w.shares ?? 0);
+        const stale = Number(w.stale ?? 0);
+        const invalid = Number(w.invalid ?? 0);
+        const ping = Number(w.ping ?? w.latency ?? 0);
+        return {
+          id: w.id || w.name || 'Worker',
+          name: w.name || w.worker || 'Worker',
+          ip: w.ip || w.clientIp || '127.0.0.1',
+          hashrate: Number(w.hashrate || 0),
+          difficulty: Number(w.difficulty || w.diff || 1),
+          shares: accepted,
+          accepted,
+          stale,
+          invalid,
+          ping,
+          effort: Number(w.effort || 0),
+          status: (w.connected === false || w.status === 'offline') ? 'offline' : (w.status || 'online'),
+          lastShare: w.lastShare ? new Date(w.lastShare).toISOString() : new Date().toISOString(),
+        };
+      });
       activeMiners = workersList.filter(w => w.status === 'online').length;
       if (totalHashrate === 0 && workersList.length > 0) {
         totalHashrate = workersList.reduce((acc, cur) => acc + cur.hashrate, 0);

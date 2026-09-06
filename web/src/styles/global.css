@@ -92,3 +92,54 @@ body {
   color: var(--kaspa-teal);
   font-size: 0.875rem;
 }
+
+/* Responsive Worker Table & Mobile Cards (UX-DR3, UX-DR8) */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.worker-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.worker-table th {
+  padding: 12px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--bg-surface-hover);
+}
+
+.worker-table td {
+  padding: 14px;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--bg-surface-hover);
+  vertical-align: middle;
+}
+
+.worker-cards-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+  .app-sidebar {
+    display: none;
+  }
+  .worker-table-desktop {
+    display: none;
+  }
+  .worker-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

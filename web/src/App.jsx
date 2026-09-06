@@ -1035,9 +1035,195 @@ export function GhostdagCanvas() {
   );
 }
 
+export function WorkerFleetTable({ workers = [], lanIp = '127.0.0.1' }) {
+  if (!workers || workers.length === 0) {
+    return (
+      <div className="card" style={{ marginTop: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 className="card-title" style={{ marginBottom: 0 }}>Miners & Workers (0 Active)</h3>
+        </div>
+        <div style={{
+          padding: '36px 20px',
+          textAlign: 'center',
+          backgroundColor: '#0A0A0C',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px dashed var(--bg-surface-hover)',
+        }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '8px' }}>
+            No workers currently connected. Connect an ASIC using <code style={{ color: 'var(--kaspa-teal)', fontFamily: "'Fira Code', monospace" }}>stratum+tcp://{lanIp || '127.0.0.1'}:55555</code>
+          </p>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            Autodetecting connections on port 55555...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ marginTop: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 className="card-title" style={{ marginBottom: 0 }}>Miners & Workers ({workers.length} Active)</h3>
+        <span style={{ fontSize: '0.8rem', color: 'var(--kaspa-teal)', fontWeight: 600 }}>
+          Port 55555 Stratum
+        </span>
+      </div>
+
+      {/* Desktop Table View (UX-DR8) */}
+      <div className="worker-table-desktop table-responsive">
+        <table className="worker-table">
+          <thead>
+            <tr>
+              <th>Worker Name</th>
+              <th>Hashrate</th>
+              <th>Shares (Acc / Stale / Inv)</th>
+              <th>Difficulty</th>
+              <th>Latency (Ping)</th>
+              <th>Round Effort</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workers.map((w, idx) => {
+              const totalShares = (w.accepted || 0) + (w.stale || 0) + (w.invalid || 0);
+              const stalePct = totalShares > 0 ? (((w.stale || 0) / totalShares) * 100).toFixed(1) : '0.0';
+              const invalidPct = totalShares > 0 ? (((w.invalid || 0) / totalShares) * 100).toFixed(1) : '0.0';
+              const effort = Number(w.effort || 0);
+              const isLucky = effort < 100;
+              const ping = Number(w.ping || 0);
+              const pingColor = ping <= 50 ? '#10B981' : (ping <= 120 ? '#F59E0B' : '#EF4444');
+
+              return (
+                <tr key={w.id || w.name || idx}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: w.status === 'offline' ? '#6B7280' : '#10B981',
+                        display: 'inline-block',
+                      }} />
+                      <strong style={{ color: 'var(--text-primary)', fontFamily: "'Fira Code', var(--font-mono), monospace" }}>
+                        {w.name || `worker-${idx + 1}`}
+                      </strong>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '16px' }}>
+                      {w.ip || '127.0.0.1'}
+                    </div>
+                  </td>
+                  <td>
+                    <span style={{
+                      fontFamily: "'Fira Code', var(--font-mono), monospace",
+                      fontWeight: 700,
+                      color: 'var(--kaspa-teal)'
+                    }}>
+                      {formatHashrate(w.hashrate)}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ fontFamily: "'Fira Code', var(--font-mono), monospace", fontSize: '0.85rem' }}>
+                      <span style={{ color: '#10B981' }}>{w.accepted || 0}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}> / </span>
+                      <span style={{ color: (w.stale || 0) > 0 ? '#F59E0B' : 'var(--text-secondary)' }}>
+                        {w.stale || 0} ({stalePct}%)
+                      </span>
+                      <span style={{ color: 'var(--text-secondary)' }}> / </span>
+                      <span style={{ color: (w.invalid || 0) > 0 ? '#EF4444' : 'var(--text-secondary)' }}>
+                        {w.invalid || 0} ({invalidPct}%)
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <span style={{ fontFamily: "'Fira Code', var(--font-mono), monospace", color: 'var(--text-secondary)' }}>
+                      {w.difficulty || 1}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{
+                      fontFamily: "'Fira Code', var(--font-mono), monospace",
+                      color: pingColor,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      {ping > 0 ? `${ping} ms` : '< 5 ms'}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '3px 8px',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      fontFamily: "'Fira Code', var(--font-mono), monospace",
+                      backgroundColor: isLucky ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                      color: isLucky ? '#10B981' : '#F59E0B',
+                      border: `1px solid ${isLucky ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+                    }}>
+                      {effort}% {isLucky ? '(Lucky)' : ''}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Stacked Cards Fallback (UX-DR3, UX-DR8) */}
+      <div className="worker-cards-mobile">
+        {workers.map((w, idx) => {
+          const effort = Number(w.effort || 0);
+          const isLucky = effort < 100;
+          return (
+            <div key={w.id || idx} style={{
+              backgroundColor: '#0A0A0C',
+              padding: '14px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--bg-surface-hover)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <strong style={{ fontFamily: "'Fira Code', monospace" }}>{w.name || `worker-${idx + 1}`}</strong>
+                <span style={{
+                  color: isLucky ? '#10B981' : '#F59E0B',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  fontFamily: "'Fira Code', monospace"
+                }}>
+                  {effort}% Effort
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Hashrate:</span>
+                <span style={{ color: 'var(--kaspa-teal)', fontWeight: 600, fontFamily: "'Fira Code', monospace" }}>
+                  {formatHashrate(w.hashrate)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Shares:</span>
+                <span style={{ fontFamily: "'Fira Code', monospace" }}>
+                  {w.accepted || 0} acc / {w.stale || 0} stale / {w.invalid || 0} inv
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Diff / Ping:</span>
+                <span style={{ fontFamily: "'Fira Code', monospace" }}>
+                  diff {w.difficulty || 1} • {w.ping || 0} ms
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [status, setStatus] = useState(null);
   const [stats, setStats] = useState(null);
+  const [workers, setWorkers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [showCelebration, setShowCelebration] = useState(false);
   
@@ -1091,6 +1277,22 @@ function App() {
 
     fetchStats();
     const int = setInterval(fetchStats, 5000);
+    return () => clearInterval(int);
+  }, []);
+
+  useEffect(() => {
+    const fetchWorkers = async () => {
+      try {
+        const res = await fetch('/api/workers');
+        const data = await res.json();
+        setWorkers(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to fetch workers", err);
+      }
+    };
+
+    fetchWorkers();
+    const int = setInterval(fetchWorkers, 5000);
     return () => clearInterval(int);
   }, []);
 
@@ -1174,6 +1376,9 @@ function App() {
 
         {/* Story 2.2: 24-Hour Hashrate Trend Chart */}
         <HashrateTrendChart />
+
+        {/* Story 2.3: Mobile-Responsive Worker Fleet Table with Effort Telemetry */}
+        <WorkerFleetTable workers={workers} lanIp={status?.bridge?.connection?.lanIp} />
         
         <div className="card" style={{ marginTop: '24px' }}>
           <h2 className="card-title">
