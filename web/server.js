@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
 import { collector } from './collector.js';
+export { collector };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -245,14 +246,46 @@ app.get('/api/rewards', (req, res) => {
   res.json(collector.state.minedBlocks);
 });
 
-// 8. Block Event / Confetti trigger
+// 8. Block Event / Confetti trigger (FR-10, UX-DR10)
+export function registerMinedBlock(block = {}) {
+  const record = {
+    hash: block.hash || '7f9a2b4c5d6e1f0a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a',
+    timestamp: block.timestamp || Date.now(),
+    blueScore: block.blueScore || 85492010,
+    worker: block.worker || 'ks0-rig-01',
+    effort: block.effort || 84.5,
+    reward: block.reward || 128.5,
+    subsidy: block.subsidy || 125.0,
+    fees: block.fees || 3.5,
+    usdValue: block.usdValue || 20.56,
+    confirmed: true,
+  };
+  if (!Array.isArray(collector.state.minedBlocks)) {
+    collector.state.minedBlocks = [];
+  }
+  collector.state.minedBlocks.unshift(record);
+  return record;
+}
+
 app.get('/api/block_event', (req, res) => {
-  const recent = collector.state.minedBlocks[0];
-  if (recent && (Date.now() - recent.timestamp < 30000)) {
-    res.json({ blockFound: true, hash: recent.hash, reward: recent.reward });
+  const recent = Array.isArray(collector.state.minedBlocks) ? collector.state.minedBlocks[0] : null;
+  if (recent && (Date.now() - (recent.timestamp || 0) < 60000)) {
+    res.json({
+      blockFound: true,
+      hash: recent.hash,
+      worker: recent.worker || 'Worker-1',
+      reward: recent.reward,
+      blueScore: recent.blueScore,
+      timestamp: recent.timestamp,
+    });
   } else {
     res.json({ blockFound: false });
   }
+});
+
+app.post('/api/block_event/test', (req, res) => {
+  const block = registerMinedBlock(req.body);
+  res.json({ success: true, block });
 });
 
 // 9. Reset Historical Data (AD-6: Danger Zone Safety Gate)

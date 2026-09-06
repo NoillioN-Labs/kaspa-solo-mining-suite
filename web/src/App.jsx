@@ -43,6 +43,92 @@ function CircularProgress({ progress }) {
   );
 }
 
+export function BlockCelebration({ onComplete }) {
+  const canvasRef = React.useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animId;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#70C7BA', '#34D399', '#F59E0B', '#3B82F6', '#EC4899', '#FFFFFF'];
+    const particleCount = 130;
+    const particles = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: canvas.width * 0.5 + (Math.random() * 240 - 120),
+        y: canvas.height * 0.3 + (Math.random() * 60 - 30),
+        vx: (Math.random() - 0.5) * 16,
+        vy: (Math.random() - 0.7) * 18,
+        size: Math.random() * 8 + 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 10,
+        opacity: 1,
+        gravity: 0.35,
+      });
+    }
+
+    const startTime = performance.now();
+
+    const render = (now) => {
+      const elapsed = now - startTime;
+      if (elapsed > 4000) {
+        if (onComplete) onComplete();
+        return;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.rotation += p.rotationSpeed;
+        if (elapsed > 2500) {
+          p.opacity = Math.max(0, 1 - (elapsed - 2500) / 1500);
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        ctx.restore();
+      }
+
+      animId = requestAnimationFrame(render);
+    };
+
+    animId = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [onComplete]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        pointerEvents: 'none',
+        zIndex: 9999,
+      }}
+    />
+  );
+}
+
 export function PresetSelector() {
   const [catalog, setCatalog] = useState([]);
   const [activePreset, setActivePresetState] = useState('automatic');
@@ -1171,7 +1257,7 @@ export function GhostdagCanvas() {
   );
 }
 
-export function WorkerFleetTable({ workers = [], lanIp = '127.0.0.1' }) {
+export function WorkerFleetTable({ workers = [], lanIp = '127.0.0.1', winningWorker = null }) {
   if (!workers || workers.length === 0) {
     return (
       <div className="card" style={{ marginTop: '24px' }}>
@@ -1227,9 +1313,17 @@ export function WorkerFleetTable({ workers = [], lanIp = '127.0.0.1' }) {
               const isLucky = effort < 100;
               const ping = Number(w.ping || 0);
               const pingColor = ping <= 50 ? '#10B981' : (ping <= 120 ? '#F59E0B' : '#EF4444');
+              const isWinner = Boolean(winningWorker && (w.name === winningWorker || w.id === winningWorker));
 
               return (
-                <tr key={w.id || w.name || idx}>
+                <tr
+                  key={w.id || w.name || idx}
+                  style={{
+                    backgroundColor: isWinner ? 'rgba(112, 199, 186, 0.12)' : 'transparent',
+                    boxShadow: isWinner ? 'inset 0 0 16px rgba(112, 199, 186, 0.35)' : 'none',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{
@@ -1242,6 +1336,19 @@ export function WorkerFleetTable({ workers = [], lanIp = '127.0.0.1' }) {
                       <strong style={{ color: 'var(--text-primary)', fontFamily: "'Fira Code', var(--font-mono), monospace" }}>
                         {w.name || `worker-${idx + 1}`}
                       </strong>
+                      {isWinner && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--kaspa-teal)',
+                          color: '#000',
+                          padding: '2px 6px',
+                          borderRadius: '8px',
+                          boxShadow: '0 0 8px #70C7BA'
+                        }}>
+                          ★ BLOCK SOLVED
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '16px' }}>
                       {w.ip || '127.0.0.1'}
@@ -1312,15 +1419,32 @@ export function WorkerFleetTable({ workers = [], lanIp = '127.0.0.1' }) {
         {workers.map((w, idx) => {
           const effort = Number(w.effort || 0);
           const isLucky = effort < 100;
+          const isWinner = Boolean(winningWorker && (w.name === winningWorker || w.id === winningWorker));
           return (
             <div key={w.id || idx} style={{
-              backgroundColor: '#0A0A0C',
+              backgroundColor: isWinner ? 'rgba(112, 199, 186, 0.12)' : '#0A0A0C',
+              border: `1px solid ${isWinner ? 'var(--kaspa-teal)' : 'var(--bg-surface-hover)'}`,
+              boxShadow: isWinner ? '0 0 16px rgba(112, 199, 186, 0.4)' : 'none',
               padding: '14px',
               borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--bg-surface-hover)'
+              transition: 'all 0.3s ease'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <strong style={{ fontFamily: "'Fira Code', monospace" }}>{w.name || `worker-${idx + 1}`}</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <strong style={{ fontFamily: "'Fira Code', monospace" }}>{w.name || `worker-${idx + 1}`}</strong>
+                  {isWinner && (
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      backgroundColor: 'var(--kaspa-teal)',
+                      color: '#000',
+                      padding: '1px 5px',
+                      borderRadius: '6px'
+                    }}>
+                      ★ WINNER
+                    </span>
+                  )}
+                </div>
                 <span style={{
                   color: isLucky ? '#10B981' : '#F59E0B',
                   fontWeight: 600,
@@ -1362,6 +1486,7 @@ function App() {
   const [workers, setWorkers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [winningWorker, setWinningWorker] = useState(null);
   
   useEffect(() => {
     const pollBlockEvent = async () => {
@@ -1370,8 +1495,16 @@ function App() {
         const data = await res.json();
         if (data.blockFound) {
           setShowCelebration(true);
+          if (data.worker) setWinningWorker(data.worker);
           setAlerts(prev => {
-            const newAlert = { id: `block-${Date.now()}`, message: `🎉 Block Found! Hash: ${data.hash}`, type: 'success' };
+            const exists = prev.find(a => a.hash === data.hash);
+            if (exists) return prev;
+            const newAlert = {
+              id: `block-${Date.now()}`,
+              message: `🎉 Kaspa Block Solved! Worker: ${data.worker || 'Active Miner'} • Hash: ${data.hash?.slice(0, 16)}...`,
+              hash: data.hash,
+              type: 'success'
+            };
             return [newAlert, ...prev];
           });
         }
@@ -1466,7 +1599,24 @@ function App() {
     <div className="app-container">
       {showCelebration && <BlockCelebration onComplete={() => setShowCelebration(false)} />}
       <header className="app-header">
-        <h1>Kaspa Solo Mining</h1>
+        <div
+          onClick={() => setShowCelebration(true)}
+          title="Click for celebratory confetti Easter egg!"
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <span style={{ fontSize: '1.4rem' }}>💎</span>
+          <h1 style={{ cursor: 'pointer', margin: 0 }}>Kaspa Solo Mining</h1>
+          <span style={{
+            fontSize: '0.65rem',
+            padding: '2px 6px',
+            borderRadius: '8px',
+            backgroundColor: 'rgba(112, 199, 186, 0.15)',
+            color: 'var(--kaspa-teal)',
+            border: '1px solid rgba(112, 199, 186, 0.3)'
+          }}>
+            10 BPS Mainnet
+          </span>
+        </div>
       </header>
       
       <aside className="app-sidebar">
@@ -1491,7 +1641,19 @@ function App() {
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <span>{alert.message}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span>{alert.message}</span>
+              {alert.hash && (
+                <a
+                  href={`https://explorer.kaspa.org/blocks/${alert.hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--kaspa-teal)', textDecoration: 'underline', fontSize: '0.85rem' }}
+                >
+                  View on Kaspa Explorer ↗
+                </a>
+              )}
+            </div>
             <button 
               onClick={() => setAlerts(alerts.filter(a => a.id !== alert.id))}
               style={{
@@ -1513,8 +1675,8 @@ function App() {
         {/* Story 2.2: 24-Hour Hashrate Trend Chart */}
         <HashrateTrendChart />
 
-        {/* Story 2.3: Mobile-Responsive Worker Fleet Table with Effort Telemetry */}
-        <WorkerFleetTable workers={workers} lanIp={status?.bridge?.connection?.lanIp} />
+        {/* Story 2.3 & 3.1: Mobile-Responsive Worker Fleet Table with Winning Worker Glow */}
+        <WorkerFleetTable workers={workers} lanIp={status?.bridge?.connection?.lanIp} winningWorker={winningWorker} />
         
         <div className="card" style={{ marginTop: '24px' }}>
           <h2 className="card-title">
