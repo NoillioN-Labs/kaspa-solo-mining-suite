@@ -2153,6 +2153,8 @@ export function WorkerFleetTable({ workers = [], lanIp = '127.0.0.1', winningWor
 }
 
 function App() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [status, setStatus] = useState(null);
   const [stats, setStats] = useState(null);
   const [workers, setWorkers] = useState([]);
@@ -2267,40 +2269,173 @@ function App() {
     }
   }
 
+  const NAV_ITEMS = [
+    { id: 'overview', label: 'Overview', icon: '📊', badge: null },
+    { id: 'workers', label: 'Miners & Workers', icon: '⛏️', badge: workers.length > 0 ? `${workers.length}` : null },
+    { id: 'rewards', label: 'Mined Blocks', icon: '💎', badge: stats?.blocks24h > 0 ? `${stats.blocks24h}` : null },
+    { id: 'node', label: 'Kaspa Node', icon: '🌐', badge: status?.node?.isSynced ? 'Synced' : 'Syncing' },
+    { id: 'settings', label: 'Presets & Logs', icon: '⚙️', badge: null },
+  ];
+
+  const currentNav = NAV_ITEMS.find(n => n.id === activeTab) || NAV_ITEMS[0];
+
   return (
     <div className="app-container">
       {showCelebration && <BlockCelebration onComplete={() => setShowCelebration(false)} />}
+      
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <div className="mobile-drawer-backdrop" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.3rem' }}>💎</span>
+                  <strong style={{ color: 'var(--kaspa-teal)', fontSize: '1.1rem' }}>Kaspa Solo Suite</strong>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '1.4rem', cursor: 'pointer', padding: '4px' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.05em', marginBottom: '10px', paddingLeft: '8px' }}>
+                Menu Views
+              </div>
+
+              <ul className="nav-menu">
+                {NAV_ITEMS.map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <li
+                      key={item.id}
+                      className={`nav-item ${isActive ? 'active' : ''}`}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      <span className="nav-item-icon">{item.icon}</span>
+                      <span className="nav-item-label">{item.label}</span>
+                      {item.badge && (
+                        <span className="nav-badge">{item.badge}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--bg-surface-hover)', paddingTop: '16px' }}>
+              <div style={{ color: 'var(--kaspa-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <GlowingDot color={dotColor} />
+                {status?.node?.isSynced ? '10 BPS Synced' : 'Syncing DAG'}
+              </div>
+              <div>Suite v2.1.3 • Port 55555</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* App Header */}
       <header className="app-header">
+        <button
+          className="hamburger-btn"
+          onClick={() => setMobileMenuOpen(prev => !prev)}
+          aria-label="Toggle navigation menu"
+        >
+          ☰
+        </button>
+
         <div
           onClick={() => setShowCelebration(true)}
           title="Click for celebratory confetti Easter egg!"
           style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}
         >
           <span style={{ fontSize: '1.4rem' }}>💎</span>
-          <h1 style={{ cursor: 'pointer', margin: 0 }}>Kaspa Solo Mining</h1>
+          <h1 style={{ cursor: 'pointer', margin: 0, fontSize: '1.25rem' }}>Kaspa Solo Mining</h1>
           <span style={{
             fontSize: '0.65rem',
             padding: '2px 6px',
             borderRadius: '8px',
             backgroundColor: 'rgba(112, 199, 186, 0.15)',
             color: 'var(--kaspa-teal)',
-            border: '1px solid rgba(112, 199, 186, 0.3)'
+            border: '1px solid rgba(112, 199, 186, 0.3)',
+            display: 'none',
+            sm: 'inline'
           }}>
             10 BPS Mainnet
           </span>
         </div>
+
+        <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+          <span style={{ color: 'var(--bg-surface-hover)' }}>/</span>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{currentNav.label}</span>
+        </div>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <GlowingDot color={dotColor} />
+            <span style={{ display: 'none', md: 'inline' }}>
+              {status?.node?.isSynced ? '10 BPS Tip Synced' : 'Syncing Node'}
+            </span>
+          </div>
+        </div>
       </header>
       
+      {/* Desktop Navigation Sidebar */}
       <aside className="app-sidebar">
-        <nav>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            <li style={{ marginBottom: '16px', color: 'var(--kaspa-teal)', fontWeight: '500' }}>Dashboard</li>
-            <li style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>Settings</li>
-          </ul>
-        </nav>
+        <div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.05em', marginBottom: '12px', paddingLeft: '8px' }}>
+            Menu Screens
+          </div>
+          <nav>
+            <ul className="nav-menu">
+              {NAV_ITEMS.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <li
+                    key={item.id}
+                    className={`nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => setActiveTab(item.id)}
+                  >
+                    <span className="nav-item-icon">{item.icon}</span>
+                    <span className="nav-item-label">{item.label}</span>
+                    {item.badge && (
+                      <span className="nav-badge">{item.badge}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </div>
+
+        {/* Sidebar Footer Info */}
+        <div style={{
+          padding: '14px',
+          backgroundColor: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--bg-surface-hover)',
+          marginTop: '24px',
+          fontSize: '0.75rem'
+        }}>
+          <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>Solo Node Engine</div>
+          <div style={{ color: 'var(--kaspa-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dotColor === 'green' ? '#10B981' : (dotColor === 'red' ? '#EF4444' : '#F59E0B') }}></span>
+            {dotColor === 'green' ? 'Mining Active (10 BPS)' : (dotColor === 'red' ? 'Node Offline' : 'Node Syncing')}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', marginTop: '6px', fontSize: '0.7rem' }}>
+            Suite v2.1.3 • Port 55555
+          </div>
+        </div>
       </aside>
       
+      {/* App Main Body - Dedicated Screens (EXPERIENCE.md Information Architecture) */}
       <main className="app-main">
+        {/* Global Notifications Bar */}
         {alerts.map(alert => (
           <div key={alert.id} style={{
             backgroundColor: alert.type === 'success' ? 'rgba(112, 199, 186, 0.1)' : 'rgba(239, 68, 68, 0.1)',
@@ -2335,80 +2470,146 @@ function App() {
           </div>
         ))}
 
-        {/* Story 1.2: Multi-Stage Initial Block Download (IBD) Banner */}
-        <SyncBanner sync={status?.node} />
+        {/* ========================================================================= */}
+        {/* SCREEN 1: OVERVIEW (DASHBOARD)                                            */}
+        {/* ========================================================================= */}
+        {activeTab === 'overview' && (
+          <div>
+            <SyncBanner sync={status?.node} />
+            <AsicConnectionCard connection={status?.bridge?.connection} />
+            <MetricCardsGrid stats={stats} bridge={status?.bridge} />
+            <GhostdagCanvas />
+            <HashrateTrendChart />
 
-        {/* Story 2.2: Primary Metric Cards Grid */}
-        <MetricCardsGrid stats={stats} bridge={status?.bridge} />
+            <div className="card" style={{ marginTop: '24px' }}>
+              <h2 className="card-title" style={{ display: 'flex', alignItems: 'center' }}>
+                <GlowingDot color={dotColor} />
+                Node Engine Synchronization
+              </h2>
+              
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '32px 20px',
+                backgroundColor: 'var(--bg-base)',
+                borderRadius: 'var(--radius-sm)',
+                marginTop: '12px'
+              }}>
+                {showProgress && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <CircularProgress progress={status.node.progress || status.node.percent || 0} />
+                    <div style={{ textAlign: 'center', marginTop: '8px', color: 'var(--text-secondary)' }}>
+                      {status.node.progress || status.node.percent || 0}%
+                    </div>
+                  </div>
+                )}
+                
+                <p style={{ color: dotColor === 'red' ? '#EF4444' : 'var(--text-secondary)', textAlign: 'center', margin: 0 }}>
+                  {message}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* Story 2.2: Live 10 BPS GHOSTDAG Canvas Visualizer */}
-        <GhostdagCanvas />
-
-        {/* Story 2.2: 24-Hour Hashrate Trend Chart */}
-        <HashrateTrendChart />
-
-        {/* Story 2.3 & 3.1: Mobile-Responsive Worker Fleet Table with Winning Worker Glow */}
-        <WorkerFleetTable workers={workers} lanIp={status?.bridge?.connection?.lanIp} winningWorker={winningWorker} />
-        
-        <div className="card" style={{ marginTop: '24px' }}>
-          <h2 className="card-title">
-            <GlowingDot color={dotColor} />
-            System Status
-          </h2>
-          
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '40px 20px',
-            backgroundColor: 'var(--bg-base)',
-            borderRadius: 'var(--radius-sm)',
-            marginTop: '16px'
-          }}>
-            {showProgress && (
-              <div style={{ marginBottom: '16px' }}>
-                <CircularProgress progress={status.node.progress || status.node.percent || 0} />
-                <div style={{ textAlign: 'center', marginTop: '8px', color: 'var(--text-secondary)' }}>
-                  {status.node.progress || status.node.percent || 0}%
+        {/* ========================================================================= */}
+        {/* SCREEN 2: MINERS & WORKERS                                                */}
+        {/* ========================================================================= */}
+        {activeTab === 'workers' && (
+          <div>
+            <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  Mining Fleet Management
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px', margin: 0 }}>
+                  Active ASIC workers connected to Stratum port 55555 with vardiff telemetry.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div className="card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Connected ASICs:</span>
+                  <strong style={{ color: 'var(--kaspa-teal)', fontFamily: "'Fira Code', monospace" }}>{workers.length} Miners</strong>
                 </div>
               </div>
-            )}
-            
-            <p style={{ color: dotColor === 'red' ? '#EF4444' : 'var(--text-secondary)', textAlign: 'center' }}>
-              {message}
-            </p>
+            </div>
+
+            <WorkerFleetTable workers={workers} lanIp={status?.bridge?.connection?.lanIp} winningWorker={winningWorker} />
           </div>
-          
-          <PresetSelector />
-          {/* Story 4.3: Danger Zone Historical Telemetry Reset & Safety Gate */}
-          <DangerZone />
-        </div>
+        )}
 
-        {/* Story 1.2: Multi-Stage IBD Progress Card */}
-        <SyncProgressCard sync={status?.node} />
+        {/* ========================================================================= */}
+        {/* SCREEN 3: MINED BLOCKS & REWARDS                                          */}
+        {/* ========================================================================= */}
+        {activeTab === 'rewards' && (
+          <div>
+            <div style={{ marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Mined Blocks & Reward Analytics
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px', margin: 0 }}>
+                Permanent immutable record of blocks solved by your solo mining suite (AD-5).
+              </p>
+            </div>
 
-        {/* Story 1.3: Dual ASIC Stratum Connection Point & Quick-Copy */}
-        <AsicConnectionCard connection={status?.bridge?.connection} />
-        
-        <HealthMonitor setAlerts={setAlerts} />
-        
-        <ErrorBoundary>
-          <ProfitabilityWidget />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <MinedBlocksLedger />
-        </ErrorBoundary>
-        
-        {/* Story 4.1: Kaspa Node P2P Swarm & Network Diagnostics */}
-        <ErrorBoundary>
-          <NodeSwarmView />
-        </ErrorBoundary>
-        
-        {/* Story 4.1: Live Streaming Log Viewer with Hover-to-Pause */}
-        <ErrorBoundary>
-          <LogViewer />
-        </ErrorBoundary>
+            <ErrorBoundary>
+              <ProfitabilityWidget />
+            </ErrorBoundary>
+
+            <ErrorBoundary>
+              <MinedBlocksLedger />
+            </ErrorBoundary>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SCREEN 4: KASPA NODE                                                      */}
+        {/* ========================================================================= */}
+        {activeTab === 'node' && (
+          <div>
+            <div style={{ marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Kaspa Full Node & Mesh Swarm Diagnostics
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px', margin: 0 }}>
+                Local Rusty Kaspad daemon state, initial block download (IBD), and P2P mesh telemetry.
+              </p>
+            </div>
+
+            <SyncProgressCard sync={status?.node} />
+            <HealthMonitor setAlerts={setAlerts} />
+
+            <ErrorBoundary>
+              <NodeSwarmView />
+            </ErrorBoundary>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SCREEN 5: HARDWARE PRESETS & DIAGNOSTICS                                  */}
+        {/* ========================================================================= */}
+        {activeTab === 'settings' && (
+          <div>
+            <div style={{ marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Hardware Tuning Presets & Container Logs
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px', margin: 0 }}>
+                Tuned vardiff profiles for IceRiver/Antminer ASICs, real-time log stream, and retention management.
+              </p>
+            </div>
+
+            <PresetSelector />
+
+            <ErrorBoundary>
+              <LogViewer />
+            </ErrorBoundary>
+
+            <DangerZone onResetComplete={() => setAlerts(prev => [{ id: `reset-${Date.now()}`, message: 'Historical rollup telemetry reset. Mined blocks permanently preserved.', type: 'success' }, ...prev])} />
+          </div>
+        )}
       </main>
     </div>
   );
