@@ -9,7 +9,7 @@ implementation_artifacts: "{project-root}/_bmad-output/implementation-artifacts"
 project_knowledge: "{project-root}/docs"
 
 # Core Configuration Values
-user_name: Phill
+user_name: Nathan
 project_name: _NEON dev stack
 communication_language: English
 document_output_language: English

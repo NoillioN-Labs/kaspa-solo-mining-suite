@@ -11,7 +11,7 @@
 # ─────────────────────────────────────────────────────────────────
 
 [core]
-project_name = "_NEON dev stack"
+project_name = "Kaspa Solo Mining Suite"
 document_output_language = "English"
 output_folder = "_bmad-output"
 
