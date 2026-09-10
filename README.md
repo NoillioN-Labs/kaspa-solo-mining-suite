@@ -1,6 +1,9 @@
-# NoillioN Labs Umbrel Community App Store
+# Kaspa Solo Mining Suite (retired)
 
-This repository is an official **Umbrel Community App Store** publishing the **Kaspa Solo Mining Suite (All-In-One)**.
+> [!IMPORTANT]
+> This repository is an archived predecessor and is no longer maintained. For new installations and current releases, use the [NoillioN Labs Umbrel Community App Store](https://github.com/NoillioN-Labs/umbrel-community-app-store) and install **Kaspa Mining Suite 2.0**. Existing installations should migrate to that store to receive updates.
+
+This repository previously published the all-in-one **Kaspa Solo Mining Suite**. It remains available as a historical reference only.
 
 ---
 
@@ -18,7 +21,9 @@ This repository is an official **Umbrel Community App Store** publishing the **K
 
 ---
 
-## How to Install on Umbrel
+## Historical installation instructions
+
+The steps below are retained for reference and should not be used for new installations.
 
 1. On your Umbrel server, open **App Store → Community App Stores → Add**.
 2. Paste this repository URL:
